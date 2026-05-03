@@ -5,7 +5,7 @@ import {
   getToken, setToken, getRepo, setRepo,
   testConnection, ensureRepo, isConfigured,
   getSyncStatus, formatSyncTime, disconnect,
-  uploadData, downloadData,
+  smartSync,
 } from '../utils/githubSync'
 import { collectExportData, importFromData, exportToJSON, importFromJSON } from '../utils/exportImport'
 import { useTheme } from '../utils/theme'
@@ -90,37 +90,24 @@ function handleDisconnect() {
   props.toast?.('已断开 GitHub 连接', 'info')
 }
 
-async function handleUpload() {
+async function handleSync() {
   if (syncing.value) return
   syncing.value = true
   try {
-    const data = await collectExportData()
-    await uploadData(data)
-    syncStatus.value = getSyncStatus()
-    lastSyncInfo.value = formatSyncTime()
-    props.toast?.('数据已上传到 GitHub', 'success')
-  } catch (e) {
-    props.toast?.('上传失败: ' + e.message, 'error')
-  } finally {
-    syncing.value = false
-  }
-}
-
-async function handleDownload() {
-  if (syncing.value) return
-  syncing.value = true
-  try {
-    const data = await downloadData()
-    if (!data) {
-      props.toast?.('GitHub 上没有数据', 'warning')
-      return
+    const localData = await collectExportData()
+    const result = await smartSync(localData)
+    
+    if (result.direction === 'download') {
+      await importFromData(result.data)
+      props.toast?.('数据已从 GitHub 同步到本地', 'success')
+    } else {
+      props.toast?.('本地数据已同步到 GitHub', 'success')
     }
-    await importFromData(data)
+    
     syncStatus.value = getSyncStatus()
     lastSyncInfo.value = formatSyncTime()
-    props.toast?.('数据已从 GitHub 恢复', 'success')
   } catch (e) {
-    props.toast?.('下载失败: ' + e.message, 'error')
+    props.toast?.('同步失败: ' + e.message, 'error')
   } finally {
     syncing.value = false
   }
@@ -225,22 +212,13 @@ async function handleDownload() {
       </div>
 
       <div v-if="connected" class="space-y-3">
-        <div class="flex gap-2">
-          <button
-            @click="handleUpload"
-            :disabled="syncing"
-            class="flex-1 bg-gray-800 hover:bg-gray-700 dark:bg-indigo-600 dark:hover:bg-indigo-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
-          >
-            {{ syncing ? '同步中...' : '↑ 上传到 GitHub' }}
-          </button>
-          <button
-            @click="handleDownload"
-            :disabled="syncing"
-            class="flex-1 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-50 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg text-sm font-medium transition"
-          >
-            {{ syncing ? '同步中...' : '↓ 从 GitHub 恢复' }}
-          </button>
-        </div>
+        <button
+          @click="handleSync"
+          :disabled="syncing"
+          class="w-full bg-gray-800 hover:bg-gray-700 dark:bg-indigo-600 dark:hover:bg-indigo-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+        >
+          {{ syncing ? '同步中...' : '同步数据' }}
+        </button>
         <button
           @click="handleDisconnect"
           class="w-full text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 text-sm py-2 transition"
@@ -254,9 +232,9 @@ async function handleDownload() {
       <h2 class="text-base sm:text-lg font-semibold mb-2 sm:mb-3">同步说明</h2>
       <ul class="text-sm text-gray-500 dark:text-gray-400 space-y-2">
         <li>• 数据存储在你的 GitHub 私有仓库中，只有你能访问</li>
-        <li>• 每次添加/修改/删除作品后自动同步（防抖 30 秒）</li>
-        <li>• 打开页面时自动拉取最新数据</li>
-        <li>• 你也可以随时手动点击上传或恢复</li>
+        <li>• 点击"同步数据"会自动比较本地和远程数据的时间</li>
+        <li>• 自动选择更新的版本进行同步</li>
+        <li>• 建议换设备时先同步一次，确保数据最新</li>
         <li>• GitHub 仓库有完整版本历史，误操作可回退</li>
       </ul>
     </section>
