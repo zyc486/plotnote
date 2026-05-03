@@ -38,6 +38,9 @@ PlotNote 是一个基于 Vue 3 的个人剧评记录应用，支持记录电视�
 - **自动保存**：评分、评论、图片、标签变更后自动保存到 IndexedDB
 - **草稿缓存**：使用 localStorage 缓存未保存的编辑内容
 - **导入导出**：JSON 格式备份和恢复，支持跨设备迁移
+- **GitHub 云同步**：通过 Personal Access Token 将数据同步到私有 GitHub 仓库，支持跨设备实时同步
+- **自动备份**：每次数据变更后自动备份到 localStorage（5 秒防抖，4MB 上限，7 天过期）
+- **设置页面**：集中管理导出、导入、主题切换、GitHub 云同步配置
 
 ### 4. 统计分析
 - 全剧平均分
@@ -61,20 +64,28 @@ PlotNote 是一个基于 Vue 3 的个人剧评记录应用，支持记录电视�
 
 ```
 plotnote/
+├── public/
+│   └── _redirects               # Cloudflare Pages SPA 路由规则
 ├── src/
 │   ├── components/          # 可复用组件
+│   │   ├── ConfirmDialog.vue    # 统一确认弹窗
+│   │   ├── CoverImage.vue       # 封面图片组件（带文字兜底）
 │   │   ├── GenreSelector.vue    # 分类/地区/类型选择器
 │   │   ├── ImageManager.vue     # 图片上传和管理
 │   │   ├── TagSelector.vue      # 标签选择器
 │   │   └── Toast.vue            # 消息提示组件
+│   ├── composposables/
+│   │   └── useToast.js          # Toast 组合式函数
 │   ├── db/
 │   │   └── index.js             # Dexie 数据库定义和常量
 │   ├── pages/               # 页面组件
 │   │   ├── ShowList.vue         # 首页：内容列表
 │   │   ├── EpisodeList.vue      # 剧集列表页
 │   │   ├── EpisodeRecord.vue    # 记录编辑页
+│   │   ├── Search.vue           # 搜索页面
+│   │   ├── Settings.vue         # 设置页面（导出/导入/主题/云同步）
 │   │   ├── Statistics.vue       # 统计页面
-│   │   └── Search.vue           # 搜索页面
+│   │   └── Timeline.vue         # 观看时间线
 │   ├── router/
 │   │   └── index.js             # 路由配置
 │   ├── stores/              # Pinia 状态管理
@@ -84,11 +95,14 @@ plotnote/
 │   │   └── tags.js              # 标签数据
 │   ├── utils/               # 工具函数
 │   │   ├── anilist.js           # AniList API
+│   │   ├── autoBackup.js        # 自动备份 + GitHub 云同步
 │   │   ├── debounce.js          # 防抖/节流
 │   │   ├── draftCache.js        # 草稿缓存
 │   │   ├── exportImport.js      # 导入导出
-│   │   ├── googleBooks.js       # Google Books API
+│   │   ├── githubSync.js        # GitHub 云同步核心模块
+│   │   ├── googleBooks.js       # 豆瓣图书 API
 │   │   ├── imageUtils.js        # 图片压缩
+│   │   ├── markdown.js          # Markdown 渲染
 │   │   ├── terminology.js       # 术语映射
 │   │   ├── theme.js             # 主题切换
 │   │   ├── tmdb.js              # TMDB API
@@ -96,8 +110,12 @@ plotnote/
 │   ├── App.vue              # 根组件
 │   ├── main.js              # 应用入口
 │   └── style.css            # 全局样式
+├── 文档/                    # 项目文档
+│   ├── README.md            # 本文档
+│   └── 功能升级规划.md       # 功能规划
 ├── index.html               # HTML 入口
 ├── package.json             # 依赖配置
+├── .gitignore               # Git 忽略规则
 ├── vite.config.js           # Vite 配置
 ├── tailwind.config.js       # Tailwind 配置
 └── postcss.config.js        # PostCSS 配置
@@ -206,6 +224,52 @@ plotnote/
 - `debounce(fn, delay)`: 防抖函数
 - `throttle(fn, limit)`: 节流函数
 
+## 部署
+
+### 在线地址
+
+**https://plotnote.pages.dev**
+
+### 代码仓库
+
+**https://github.com/zyc486/plotnote**（公开仓库）
+
+数据同步仓库：`zyc486/plotnote-data`（私有仓库，存放用户的观看记录数据）
+
+### 部署平台：Cloudflare Pages
+
+项目使用 Cloudflare Pages 自动部署，每次推送到 GitHub 的 `main` 分支会自动触发构建和部署。
+
+**构建配置**：
+
+| 配置项 | 值 |
+|--------|------|
+| 项目名称 | `plotnote` |
+| 生产分支 | `main` |
+| 框架预设 | `Vue` |
+| 构建命令 | `npm run build` |
+| 输出目录 | `dist` |
+
+**部署流程**：
+1. 代码推送到 GitHub `main` 分支
+2. Cloudflare Pages 自动检测变更
+3. 自动执行 `npm install` 和 `npm run build`
+4. 将 `dist/` 目录部署到全球 CDN
+5. 约 1-2 分钟后上线
+
+**SPA 路由**：项目包含 `public/_redirects` 文件，内容为 `/* /index.html 200`，确保 Vue Router 的 history 模式在刷新时不出现 404。
+
+### 数据同步：GitHub 云同步
+
+用户可通过**设置页**配置 GitHub Personal Access Token 实现跨设备数据同步：
+
+- 数据存储在私有仓库 `plotnote-data` 的 `data.json` 文件中
+- 数据变更后自动触发上传（30 秒防抖）
+- 打开页面时自动拉取最新数据
+- Token 存储在浏览器 localStorage 中，不会上传到代码仓库
+
+**Token 权限要求**：classic token 勾选 `repo` scope 即可。
+
 ## 开发指南
 
 ### 启动开发服务器
@@ -291,3 +355,31 @@ npm run preview
   - 更新日志机制
 
 **文档目的**：使新窗口的 AI 能够快速理解项目结构和功能，无需重新阅读所有源代码，直接基于本文档继续开发任务。
+
+### 2026-05-03 (v7)
+**Cloudflare Pages 部署 + 代码仓库上线**
+- 代码推送到 GitHub 公开仓库 `zyc486/plotnote`
+- 部署到 Cloudflare Pages，在线地址：https://plotnote.pages.dev
+- 创建 `public/_redirects` 文件解决 SPA 路由 404 问题
+- 创建 `.gitignore` 排除 `node_modules`、`dist` 等文件
+- 每次推送到 `main` 分支自动触发重新构建和部署
+
+### 2026-05-03 (v6)
+**GitHub 云同步 + 设置页面 + UX 全面优化**
+- **GitHub 云同步**：新建 `githubSync.js` 核心模块，通过 GitHub REST API 实现数据上传/下载，支持自动创建私有数据仓库 `plotnote-data`
+- **设置页面**：新建 `Settings.vue`，集中管理导出、导入、主题切换、GitHub 云同步配置
+- **自动备份 + 云同步集成**：`autoBackup.js` 在本地备份后自动触发 GitHub 同步（30 秒防抖），页面加载时自动拉取最新数据
+- **导出导入重构**：`exportImport.js` 拆分为 `collectExportData()`（仅收集数据）和 `exportToJSON()`（数据+下载），新增 `importFromData()` 支持程序化导入
+- **UX 优化（15 项）**：
+  - 时间线点击区域扩大，可点击整行跳转
+  - TagSelector 集成到集数记录页
+  - 多季作品季标签水平滚动
+  - 首页状态快速切换（卡片上直接切换想看/在看/看完/弃坑）
+  - 全局统计入口（导航栏新增统计按钮）
+  - 元数据展示优化（分类、状态、地区、类型标签）
+  - Markdown 编辑/预览双模式
+  - 封面图放大查看
+  - 返回搜索按钮
+  - 统一确认弹窗（ConfirmDialog 替代 window.confirm）
+- **封面图组件**：新建 `CoverImage.vue`，带 `@error` 兜底，图片加载失败时显示作品名称文字
+- **Markdown 渲染**：新建 `markdown.js`，轻量级 Markdown 渲染和纯文本提取
