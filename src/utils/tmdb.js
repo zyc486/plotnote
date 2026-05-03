@@ -1,0 +1,110 @@
+const BASE_URL = 'https://api.tmdb.org/3'
+const IMG_BASE = 'https://image.tmdb.org/t/p/w200'
+const DEFAULT_API_KEY = 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0ZDBkYTE3ZDhmODBiMjI4MjRiZDM5NzIzZjIyMWQwZSIsIm5iZiI6MTc0NjE4MzgzMS41ODE5OTk4LCJzdWIiOiI2ODEzNGFhNzNhZjZkOTRkMzAyNmI5NTgiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.NhSVCa8dOoRBTCBMFM7PiVsHoSnb7Kfvp0MuYIlrGxI'
+
+const TMDB_GENRE_MAP = {
+  28: '动作', 12: '冒险', 16: '动画', 35: '喜剧', 80: '犯罪',
+  99: '纪录片', 18: '剧情', 10751: '家庭', 14: '奇幻', 36: '历史',
+  27: '恐怖', 10402: '音乐', 9648: '悬疑', 10749: '爱情', 878: '科幻',
+  10770: '剧情', 53: '惊悚', 10752: '战争', 37: '冒险',
+}
+
+const LANGUAGE_REGION_MAP = {
+  'en': '美国', 'cn': '中国大陆', 'zh': '中国大陆', 'ja': '日本',
+  'ko': '韩国', 'th': '泰国', 'fr': '法国', 'de': '德国',
+  'es': '西班牙', 'hi': '印度', 'it': '意大利', 'ru': '俄罗斯',
+  'pt': '巴西',
+}
+
+function buildFetchOptions(url) {
+  const userKey = localStorage.getItem('tmdb_user_api_key') || ''
+  if (userKey) {
+    if (userKey.startsWith('eyJ')) {
+      return { url, headers: { 'Authorization': `Bearer ${userKey}`, 'Content-Type': 'application/json' } }
+    }
+    const sep = url.includes('?') ? '&' : '?'
+    return { url: `${url}${sep}api_key=${userKey}`, headers: {} }
+  }
+  return { url, headers: { 'Authorization': `Bearer ${DEFAULT_API_KEY}`, 'Content-Type': 'application/json' } }
+}
+
+export function hasCustomTmdbKey() {
+  return !!localStorage.getItem('tmdb_user_api_key')
+}
+
+export function getTmdbApiKey() {
+  return localStorage.getItem('tmdb_user_api_key') || ''
+}
+
+export function setTmdbApiKey(key) {
+  if (key) {
+    localStorage.setItem('tmdb_user_api_key', key)
+  } else {
+    localStorage.removeItem('tmdb_user_api_key')
+  }
+}
+
+export async function searchMovies(query) {
+  const { url, headers } = buildFetchOptions(
+    `${BASE_URL}/search/movie?query=${encodeURIComponent(query)}&language=zh-CN&include_adult=false`
+  )
+  const res = await fetch(url, { headers })
+  if (!res.ok) {
+    if (res.status === 401) {
+      if (hasCustomTmdbKey()) throw new Error('API Key 无效，请检查后重试')
+      throw new Error('默认 Key 失效，请配置自己的 TMDB API Key')
+    }
+    throw new Error('TMDB API 请求失败')
+  }
+
+  const data = await res.json()
+  const items = data.results || []
+
+  return items.slice(0, 10).map(item => ({
+    id: item.id,
+    name: item.title || item.original_title || '',
+    originalName: item.original_title || '',
+    genres: (item.genre_ids || []).map(id => TMDB_GENRE_MAP[id]).filter(Boolean),
+    rawGenreIds: item.genre_ids || [],
+    image: item.poster_path ? `${IMG_BASE}${item.poster_path}` : null,
+    language: item.original_language || '',
+    releaseDate: item.release_date || '',
+    overview: item.overview || '',
+    region: LANGUAGE_REGION_MAP[item.original_language] || '',
+    source: 'tmdb',
+  }))
+}
+
+export function inferRegionFromLanguage(lang) {
+  return LANGUAGE_REGION_MAP[lang] || ''
+}
+
+export async function findTvPoster(query) {
+  try {
+    const { url, headers } = buildFetchOptions(
+      `${BASE_URL}/search/tv?query=${encodeURIComponent(query)}&language=zh-CN`
+    )
+    const res = await fetch(url, { headers })
+    if (!res.ok) return null
+    const data = await res.json()
+    const item = data.results?.[0]
+    return item?.poster_path ? `${IMG_BASE}${item.poster_path}` : null
+  } catch {
+    return null
+  }
+}
+
+export async function findMoviePosterFallback(query) {
+  try {
+    const { url, headers } = buildFetchOptions(
+      `${BASE_URL}/search/movie?query=${encodeURIComponent(query)}&language=zh-CN&include_adult=false`
+    )
+    const res = await fetch(url, { headers })
+    if (!res.ok) return null
+    const data = await res.json()
+    const item = data.results?.[0]
+    return item?.poster_path ? `${IMG_BASE}${item.poster_path}` : null
+  } catch {
+    return null
+  }
+}
