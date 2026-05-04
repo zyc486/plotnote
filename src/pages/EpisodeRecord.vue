@@ -8,7 +8,6 @@ import { debounce } from '../utils/debounce'
 import { saveDraft, clearDraft, loadDraft } from '../utils/draftCache'
 import { getTerminology } from '../utils/terminology'
 import ImageManager from '../components/ImageManager.vue'
-import TagSelector from '../components/TagSelector.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import { renderMarkdown } from '../utils/markdown'
 
@@ -22,7 +21,6 @@ const show = ref(null)
 const rating = ref(0)
 const review = ref('')
 const images = ref([])
-const tags = ref([])
 const watchedDate = ref('')
 const loaded = ref(false)
 const dirty = ref(false)
@@ -79,7 +77,6 @@ async function forceSave() {
       rating: rating.value,
       review: review.value,
       images: JSON.stringify(images.value),
-      tags: JSON.stringify(tags.value),
       watchedDate: watchedDate.value || null,
     })
     dirty.value = false
@@ -94,7 +91,6 @@ function saveToDraft() {
     rating: rating.value,
     review: review.value,
     images: images.value,
-    tags: tags.value,
     watchedDate: watchedDate.value,
   })
 }
@@ -103,7 +99,7 @@ async function ensureRecordExists() {
   if (!episode.value || !loaded.value) return
   if (!currentRecordId.value) {
     const id = await recordsStore.createRecord(
-      episode.value.id, rating.value, review.value, images.value, tags.value, watchedDate.value
+      episode.value.id, rating.value, review.value, images.value, [], watchedDate.value
     )
     currentRecordId.value = id
     await loadEpisodeRecords()
@@ -139,15 +135,6 @@ const debouncedSaveImages = debounce(async (val) => {
   saveToDraft()
 }, 1000)
 
-const debouncedSaveTags = debounce(async (val) => {
-  if (skipWatchers) return
-  if (currentRecordId.value) {
-    await recordsStore.updateRecord(currentRecordId.value, { tags: val })
-    dirty.value = false
-  }
-  saveToDraft()
-}, 500)
-
 const debouncedSaveWatchedDate = debounce(async (val) => {
   if (skipWatchers) return
   if (currentRecordId.value) {
@@ -176,12 +163,6 @@ watch(images, (val) => {
   debouncedSaveImages(val)
 }, { deep: true })
 
-watch(tags, (val) => {
-  if (skipWatchers) return
-  dirty.value = true
-  debouncedSaveTags(val)
-}, { deep: true })
-
 watch(watchedDate, (val) => {
   if (skipWatchers) return
   dirty.value = true
@@ -203,7 +184,6 @@ async function loadEpisodeRecords() {
   episodeRecords.value = recordsStore.episodeRecords.map(r => ({
     ...r,
     images: parseJsonSafe(r.images),
-    tags: parseJsonSafe(r.tags),
   }))
 }
 
@@ -236,7 +216,6 @@ async function initPage() {
   rating.value = 0
   review.value = ''
   images.value = []
-  tags.value = []
   watchedDate.value = new Date().toISOString().split('T')[0]
   dirty.value = false
 
@@ -247,7 +226,6 @@ async function initPage() {
     rating.value = activeRecord.rating ?? 0
     review.value = activeRecord.review ?? ''
     images.value = parseJsonSafe(activeRecord.images)
-    tags.value = parseJsonSafe(activeRecord.tags)
     watchedDate.value = activeRecord.watchedDate || new Date().toISOString().split('T')[0]
   } else {
     const draft = loadDraft(episodeId)
@@ -255,7 +233,6 @@ async function initPage() {
       rating.value = draft.rating ?? 0
       review.value = draft.review ?? ''
       images.value = draft.images ?? []
-      tags.value = draft.tags ?? []
       if (draft.watchedDate) watchedDate.value = draft.watchedDate
     }
   }
@@ -282,7 +259,6 @@ async function createNewRecord() {
   rating.value = 0
   review.value = ''
   images.value = []
-  tags.value = []
   dirty.value = false
 
   await loadEpisodeRecords()
@@ -301,7 +277,6 @@ async function switchRecord(recordId) {
     rating.value = record.rating ?? 0
     review.value = record.review ?? ''
     images.value = parseJsonSafe(record.images)
-    tags.value = parseJsonSafe(record.tags)
     watchedDate.value = record.watchedDate || new Date().toISOString().split('T')[0]
     await nextTick()
     skipWatchers = false
@@ -323,7 +298,6 @@ async function switchActiveRecord(recordId) {
     rating.value = record.rating ?? 0
     review.value = record.review ?? ''
     images.value = parseJsonSafe(record.images)
-    tags.value = parseJsonSafe(record.tags)
     watchedDate.value = record.watchedDate || new Date().toISOString().split('T')[0]
     await nextTick()
     skipWatchers = false
@@ -349,7 +323,6 @@ async function deleteRecord(recordId) {
           rating.value = 0
           review.value = ''
           images.value = []
-          tags.value = []
           watchedDate.value = new Date().toISOString().split('T')[0]
           currentRecordId.value = null
           await nextTick()
@@ -569,10 +542,6 @@ onBeforeRouteLeave(async (to, from, next) => {
               v-html="renderMarkdown(review || '*暂无感想*')"
             ></div>
             <p class="text-[10px] text-gray-400 dark:text-gray-500 mt-1.5">支持 Markdown 语法，停止输入 500ms 后自动保存</p>
-          </div>
-
-          <div class="mt-4">
-            <TagSelector v-model="tags" />
           </div>
 
           <div class="mt-4">
