@@ -71,7 +71,11 @@ function parseJsonSafe(str) {
 }
 
 async function forceSave() {
-  if (!currentRecordId.value || !episode.value) return
+  if (!episode.value || !loaded.value) return
+  if (dirty.value && !currentRecordId.value) {
+    await ensureRecordExists()
+  }
+  if (!currentRecordId.value) return
   try {
     await db.records.update(currentRecordId.value, {
       rating: rating.value,
@@ -97,6 +101,10 @@ function saveToDraft() {
 
 async function ensureRecordExists() {
   if (!episode.value || !loaded.value) return
+  if (currentRecordId.value) {
+    const exists = await db.records.get(currentRecordId.value)
+    if (!exists) currentRecordId.value = null
+  }
   if (!currentRecordId.value) {
     const id = await recordsStore.createRecord(
       episode.value.id, rating.value, review.value, images.value, [], watchedDate.value
@@ -192,6 +200,11 @@ function watchCount(episodeId) {
 }
 
 async function initPage() {
+  debouncedSaveRating.cancel()
+  debouncedSaveReview.cancel()
+  debouncedSaveImages.cancel()
+  debouncedSaveWatchedDate.cancel()
+
   loaded.value = false
   skipWatchers = true
 
@@ -338,6 +351,10 @@ async function deleteRecord(recordId) {
 
 async function jumpToEpisode(episodeData) {
   if (!episodeData) return
+  debouncedSaveRating.cancel()
+  debouncedSaveReview.cancel()
+  debouncedSaveImages.cancel()
+  debouncedSaveWatchedDate.cancel()
   await forceSave()
   if (episode.value) clearDraft(episode.value.id)
   router.push(`/episode/${episodeData.id}`)
@@ -384,6 +401,10 @@ onUnmounted(() => {
 })
 
 onBeforeRouteLeave(async (to, from, next) => {
+  debouncedSaveRating.cancel()
+  debouncedSaveReview.cancel()
+  debouncedSaveImages.cancel()
+  debouncedSaveWatchedDate.cancel()
   await forceSave()
   saveToDraft()
   next()
