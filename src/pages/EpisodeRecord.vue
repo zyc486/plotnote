@@ -289,6 +289,26 @@ async function createNewRecord() {
   props.toast?.('新记录已创建', 'success')
 }
 
+async function switchRecord(recordId) {
+  if (!episode.value || recordId === currentRecordId.value) return
+  await forceSave()
+
+  currentRecordId.value = recordId
+
+  const record = await db.records.get(recordId)
+  if (record) {
+    skipWatchers = true
+    rating.value = record.rating ?? 0
+    review.value = record.review ?? ''
+    images.value = parseJsonSafe(record.images)
+    tags.value = parseJsonSafe(record.tags)
+    watchedDate.value = record.watchedDate || new Date().toISOString().split('T')[0]
+    await nextTick()
+    skipWatchers = false
+  }
+  dirty.value = false
+}
+
 async function switchActiveRecord(recordId) {
   if (!episode.value) return
   await forceSave()
@@ -418,56 +438,54 @@ onBeforeRouteLeave(async (to, from, next) => {
     </div>
 
     <div v-if="loaded" class="flex flex-col sm:flex-row flex-1 min-h-0">
-      <div class="w-full sm:w-72 flex-shrink-0 border-b sm:border-b-0 sm:border-r border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 flex flex-col overflow-y-auto max-h-[40vh] sm:max-h-none">
-        <div class="p-3 sm:p-4 border-b border-gray-200 dark:border-gray-800">
-          <label class="block text-xs text-gray-500 dark:text-gray-400 mb-2">评分</label>
-          <div
-            class="text-4xl font-bold text-amber-400 text-center mb-3 transition-transform duration-300"
-            :class="{ 'scale-110': ratingAnimation }"
-          >
-            {{ Number(rating).toFixed(1) }}
-          </div>
+      <!-- 移动端：评分固定顶部 -->
+      <div class="sm:hidden bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-3 flex-shrink-0">
+        <div class="flex items-center gap-3">
+          <span class="text-3xl font-bold text-amber-400 flex-shrink-0">{{ Number(rating).toFixed(1) }}</span>
           <input
             v-model.number="rating"
             type="range"
             min="0"
             max="10"
             step="0.1"
-            class="w-full accent-indigo-500"
+            class="flex-1 accent-indigo-500 h-6"
+            @touchstart.stop
+            @touchmove.stop
           />
+          <input
+            :value="rating"
+            @input="rating = Number($event.target.value)"
+            type="number"
+            min="0"
+            max="10"
+            step="0.1"
+            class="w-14 text-center bg-gray-200 dark:bg-gray-700 rounded px-1 py-1 text-xs font-bold text-amber-400 outline-none focus:ring-1 focus:ring-indigo-500 flex-shrink-0"
+          />
+        </div>
+      </div>
+
+      <!-- 桌面端：左侧栏 -->
+      <div class="hidden sm:flex w-72 flex-shrink-0 border-r border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 flex-col overflow-y-auto">
+        <div class="p-4 border-b border-gray-200 dark:border-gray-800">
+          <label class="block text-xs text-gray-500 dark:text-gray-400 mb-2">评分</label>
+          <div class="text-4xl font-bold text-amber-400 text-center mb-3">{{ Number(rating).toFixed(1) }}</div>
+          <input v-model.number="rating" type="range" min="0" max="10" step="0.1" class="w-full accent-indigo-500" />
           <div class="flex justify-between text-[10px] text-gray-400 dark:text-gray-500 mt-1">
             <span>0</span>
-            <input
-              :value="rating"
-              @input="rating = Number($event.target.value)"
-              type="number"
-              min="0"
-              max="10"
-              step="0.1"
-              class="w-16 text-center bg-gray-200 dark:bg-gray-700 rounded px-1 py-0.5 text-xs font-bold text-amber-400 outline-none focus:ring-1 focus:ring-indigo-500"
-            />
+            <input :value="rating" @input="rating = Number($event.target.value)" type="number" min="0" max="10" step="0.1" class="w-16 text-center bg-gray-200 dark:bg-gray-700 rounded px-1 py-0.5 text-xs font-bold text-amber-400 outline-none focus:ring-1 focus:ring-indigo-500" />
             <span>10</span>
           </div>
         </div>
 
-        <div class="p-3 sm:p-4 border-b border-gray-200 dark:border-gray-800">
+        <div class="p-4 border-b border-gray-200 dark:border-gray-800">
           <label class="block text-xs text-gray-500 dark:text-gray-400 mb-2">观看日期</label>
-          <input
-            v-model="watchedDate"
-            type="date"
-            class="w-full bg-gray-200 dark:bg-gray-700 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-          />
+          <input v-model="watchedDate" type="date" class="w-full bg-gray-200 dark:bg-gray-700 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
         </div>
 
-        <div class="p-3 sm:p-4 flex-1">
+        <div class="p-4 flex-1">
           <div class="flex items-center justify-between mb-2">
             <label class="text-xs text-gray-500 dark:text-gray-400">多刷记录</label>
-            <button
-              @click="createNewRecord"
-              class="text-[10px] text-indigo-500 hover:text-indigo-400 dark:text-indigo-400 dark:hover:text-indigo-300 transition"
-            >
-              + 新建
-            </button>
+            <button @click="createNewRecord" class="text-[10px] text-indigo-500 hover:text-indigo-400 transition">+ 新建</button>
           </div>
 
           <div v-if="episodeRecords.length > 0" class="space-y-1.5">
@@ -480,7 +498,7 @@ onBeforeRouteLeave(async (to, from, next) => {
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
                   <span class="text-xs font-medium">第{{ episodeRecords.length - index }}次</span>
-                  <span v-if="record.id === episode?.activeRecordId" class="text-[10px] bg-gray-800 text-gray-100 dark:bg-indigo-600 dark:text-indigo-100 px-1.5 py-0.5 rounded-full">主</span>
+                  <span v-if="record.id === episode?.activeRecordId" class="text-[10px] bg-gray-800 text-gray-100 dark:bg-indigo-600 px-1.5 py-0.5 rounded-full">主</span>
                 </div>
                 <span v-if="record.rating > 0" class="text-sm font-bold text-amber-400">{{ Number(record.rating).toFixed(1) }}</span>
                 <span v-else class="text-[10px] text-gray-400">—</span>
@@ -488,28 +506,49 @@ onBeforeRouteLeave(async (to, from, next) => {
               <div class="flex items-center justify-between mt-1">
                 <span class="text-[10px] text-gray-400 dark:text-gray-500">{{ record.watchedDate || formatDate(record.createdAt) }}</span>
                 <div class="flex gap-1">
-                  <button
-                    v-if="record.id !== episode?.activeRecordId"
-                    @click.stop="switchActiveRecord(record.id)"
-                    class="text-[10px] text-indigo-500 hover:text-indigo-400 px-1 rounded transition"
-                  >主</button>
-                  <button
-                    v-if="record.id !== currentRecordId"
-                    @click.stop="deleteRecord(record.id)"
-                    class="text-[10px] text-red-400 hover:text-red-300 px-1 rounded transition"
-                  >删</button>
+                  <button v-if="record.id !== episode?.activeRecordId" @click.stop="switchActiveRecord(record.id)" class="text-[10px] text-indigo-500 hover:text-indigo-400 px-1 rounded transition">主</button>
+                  <button v-if="record.id !== currentRecordId" @click.stop="deleteRecord(record.id)" class="text-[10px] text-red-400 hover:text-red-300 px-1 rounded transition">删</button>
                 </div>
               </div>
             </div>
           </div>
-          <div v-else class="text-[10px] text-gray-400 dark:text-gray-500 text-center py-4">
-            评分后自动创建
-          </div>
+          <div v-else class="text-[10px] text-gray-400 dark:text-gray-500 text-center py-4">评分后自动创建</div>
         </div>
       </div>
 
+      <!-- 主内容区 -->
       <div class="flex-1 flex flex-col min-w-0 min-h-0">
         <div class="flex-1 flex flex-col p-3 sm:p-6 overflow-y-auto min-h-0">
+          <!-- 移动端：观看日期和多刷记录 -->
+          <div class="sm:hidden mb-4 space-y-3">
+            <div class="flex items-center gap-3">
+              <label class="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">日期</label>
+              <input v-model="watchedDate" type="date" class="flex-1 bg-gray-100 dark:bg-gray-800 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500 border border-gray-200 dark:border-gray-700" />
+            </div>
+
+            <div v-if="episodeRecords.length > 0">
+              <div class="flex items-center justify-between mb-2">
+                <label class="text-xs text-gray-500 dark:text-gray-400">多刷记录</label>
+                <button @click="createNewRecord" class="text-[10px] text-indigo-500 hover:text-indigo-400 transition">+ 新建</button>
+              </div>
+              <div class="flex gap-2 overflow-x-auto pb-1">
+                <div
+                  v-for="(record, index) in episodeRecords"
+                  :key="record.id"
+                  @click="switchRecord(record.id)"
+                  class="flex-shrink-0 px-3 py-2 rounded-lg cursor-pointer transition text-xs"
+                  :class="record.id === currentRecordId ? 'bg-indigo-100 dark:bg-indigo-600/20 border border-indigo-300 dark:border-indigo-500/30' : 'bg-gray-100 dark:bg-gray-800'"
+                >
+                  <div class="flex items-center gap-1">
+                    <span>第{{ episodeRecords.length - index }}次</span>
+                    <span v-if="record.id === episode?.activeRecordId" class="text-[10px] bg-gray-800 text-gray-100 dark:bg-indigo-600 px-1 py-0.5 rounded-full">主</span>
+                  </div>
+                  <div class="font-bold text-amber-400 mt-0.5">{{ record.rating > 0 ? Number(record.rating).toFixed(1) : '—' }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div class="flex-1 flex flex-col">
             <div class="flex items-center justify-between mb-3">
               <label class="block text-sm text-gray-500 dark:text-gray-400">感想</label>
