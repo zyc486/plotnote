@@ -227,16 +227,5 @@ async function handleSync() {
         </button>
       </div>
     </section>
-
-    <section class="bg-gray-100 dark:bg-gray-800 rounded-2xl p-4 sm:p-6">
-      <h2 class="text-base sm:text-lg font-semibold mb-2 sm:mb-3">同步说明</h2>
-      <ul class="text-sm text-gray-500 dark:text-gray-400 space-y-2">
-        <li>• 数据存储在你的 GitHub 私有仓库中，只有你能访问</li>
-        <li>• 点击"同步数据"会自动比较本地和远程数据的时间</li>
-        <li>• 自动选择更新的版本进行同步</li>
-        <li>• 建议换设备时先同步一次，确保数据最新</li>
-        <li>• GitHub 仓库有完整版本历史，误操作可回退</li>
-      </ul>
-    </section>
   </div>
 </template>
