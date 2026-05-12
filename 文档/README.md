@@ -125,13 +125,13 @@ plotnote/
 
 ### 数据库设计 (db/index.js)
 
-使用 Dexie（IndexedDB 封装），版本 5，包含以下表：
+使用 Dexie（IndexedDB 封装），版本 7，包含以下表：
 
 | 表名 | 主要字段 | 说明 |
 |------|----------|------|
-| shows | id, name, avgRating, ratedCount, category, region, genres, seriesId, coverImage | 内容条目 |
+| shows | id, name, avgRating, ratedCount, category, region, genres, seriesId, coverImage, status, lastWatchedAt, author | 内容条目 |
 | episodes | id, showId, season, episode, activeRecordId | 剧集/章节 |
-| records | id, episodeId, rating, review, images, tags, createdAt | 评分记录 |
+| records | id, episodeId, rating, review, images, tags, createdAt, watchedDate | 评分记录 |
 | tags | id, name, isPredefined, usageCount | 标签 |
 | genreHistory | id, name | 类型历史记录 |
 | series | id, name | 系列 |
@@ -308,6 +308,14 @@ npm run preview
 - 使用"导入"按钮恢复数据
 
 ## 更新日志
+
+### 2026-05-13
+**当前版本说明（同步到 GitHub）**
+- 统一并精简页面布局样式，减少小屏断点碎片化
+- 优化剧集记录页与时间线等核心页面的交互和可读性
+- 调整记录创建后的统计与最近观看更新逻辑
+- 精简 `debounce` 实现，聚焦核心防抖能力
+- 移除当前未使用的 `smartSync` 分支逻辑，降低同步代码复杂度
 
 ### 2026-05-02 (v5)
 **系列分组卡片 + UI 交互优化**
