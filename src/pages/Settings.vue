@@ -10,6 +10,9 @@ import {
 import { collectExportData, importFromData, exportToJSON, importFromJSON } from '../utils/exportImport'
 import { useTheme } from '../utils/theme'
 
+import { setOmdbApiKey, getOmdbApiKey, hasOmdbKey } from '../utils/omdb'
+import { setTasteDiveApiKey, getTasteDiveApiKey, hasTasteDiveKey } from '../utils/tasteDive'
+
 const props = defineProps(['toast'])
 const router = useRouter()
 const { isDark, toggleTheme } = useTheme()
@@ -22,6 +25,23 @@ const syncing = ref(false)
 const lastSyncInfo = ref('')
 const syncStatus = ref(null)
 const importInput = ref(null)
+const omdbKeyInput = ref('')
+const tasteDiveKeyInput = ref('')
+
+onMounted(() => {
+  omdbKeyInput.value = getOmdbApiKey()
+  tasteDiveKeyInput.value = getTasteDiveApiKey()
+})
+
+function saveOmdbKey() {
+  setOmdbApiKey(omdbKeyInput.value.trim())
+  props.toast?.(omdbKeyInput.value.trim() ? 'OMDb API Key 已保存' : 'OMDb API Key 已清除', 'success')
+}
+
+function saveTasteDiveKey() {
+  setTasteDiveApiKey(tasteDiveKeyInput.value.trim())
+  props.toast?.(tasteDiveKeyInput.value.trim() ? 'TasteDive API Key 已保存' : 'TasteDive API Key 已清除', 'success')
+}
 
 async function handleExport() {
   try { await exportToJSON(); props.toast?.('导出成功', 'success') }
@@ -173,6 +193,44 @@ async function handleDownload() {
             {{ isDark ? '🌙' : '☀' }}
           </span>
         </button>
+      </div>
+    </section>
+
+    <section class="bg-gray-100 dark:bg-gray-800 rounded-2xl p-6 mb-6">
+      <h2 class="text-lg font-semibold mb-4">第三方 API 配置</h2>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm text-gray-500 dark:text-gray-400 mb-1">
+            OMDb API Key
+            <span v-if="hasOmdbKey()" class="ml-1 text-emerald-500">✓ 已配置</span>
+          </label>
+          <div class="flex gap-2">
+            <input
+              v-model="omdbKeyInput"
+              type="password"
+              placeholder="免费申请: omdbapi.com/apikey.aspx"
+              class="flex-1 bg-white dark:bg-gray-700 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+            />
+            <button @click="saveOmdbKey" class="px-3 py-2 bg-gray-800 hover:bg-gray-700 dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white rounded-lg text-sm transition">保存</button>
+          </div>
+          <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">获取 IMDB、烂番茄评分（免费额度 1000 次/天）</p>
+        </div>
+        <div>
+          <label class="block text-sm text-gray-500 dark:text-gray-400 mb-1">
+            TasteDive API Key
+            <span v-if="hasTasteDiveKey()" class="ml-1 text-emerald-500">✓ 已配置</span>
+          </label>
+          <div class="flex gap-2">
+            <input
+              v-model="tasteDiveKeyInput"
+              type="password"
+              placeholder="免费申请: tastedive.com/read/api"
+              class="flex-1 bg-white dark:bg-gray-700 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+            />
+            <button @click="saveTasteDiveKey" class="px-3 py-2 bg-gray-800 hover:bg-gray-700 dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white rounded-lg text-sm transition">保存</button>
+          </div>
+          <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">获取作品推荐（类似电影/剧集/图书推荐）</p>
+        </div>
       </div>
     </section>
 

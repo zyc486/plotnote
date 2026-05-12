@@ -6,6 +6,8 @@ import { importFromJSON } from '../utils/exportImport'
 import { searchShows as searchTvmaze, getShowEpisodes, buildEpisodesFromApi } from '../utils/tvmaze'
 import { searchMovies, setTmdbApiKey, hasCustomTmdbKey, findTvPoster, findMoviePosterFallback } from '../utils/tmdb'
 import { searchAnime } from '../utils/anilist'
+import { searchAnime as searchAnimeJikan } from '../utils/jikan'
+
 import { searchBooks } from '../utils/googleBooks'
 import { getTerminology, progressLabel } from '../utils/terminology'
 import { CATEGORIES, SHOW_STATUSES } from '../db'
@@ -128,7 +130,11 @@ const debouncedSearch = debounce(async (query) => {
       }
       searchResults.value = results
     } else if (cat === 'animation') {
-      searchResults.value = await searchAnime(q)
+      let results = await searchAnime(q)
+      if (results.length === 0) {
+        results = await searchAnimeJikan(q)
+      }
+      searchResults.value = results
     } else if (cat === 'book') {
       searchResults.value = await searchBooks(q)
     } else {
@@ -257,7 +263,8 @@ async function confirmManualAdd() {
         try { coverImage = await findMoviePosterFallback(name) || '' } catch {}
       }
     } else if (cat === 'animation') {
-      const results = await searchAnime(name)
+      let results = await searchAnime(name)
+      if (results.length === 0) results = await searchAnimeJikan(name)
       if (results.length > 0) coverImage = results[0].image || ''
     } else if (cat === 'book') {
       const results = await searchBooks(name)
@@ -457,7 +464,8 @@ async function fetchMissingCovers() {
         } else if (cat === 'movie') {
           image = await findMoviePosterFallback(show.name) || ''
         } else if (cat === 'animation') {
-          const results = await searchAnime(show.name)
+          let results = await searchAnime(show.name)
+          if (results.length === 0) results = await searchAnimeJikan(show.name)
           if (results.length > 0) image = results[0].image || ''
         } else if (cat === 'book') {
           const results = await searchBooks(show.name)

@@ -12,6 +12,8 @@ import TagSelector from '../components/TagSelector.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import { renderMarkdown } from '../utils/markdown'
 
+import { getRatingsByTitle, hasOmdbKey } from '../utils/omdb'
+
 const props = defineProps(['toast'])
 
 const route = useRoute()
@@ -31,6 +33,8 @@ const episodeRecords = ref([])
 const ratingAnimation = ref(false)
 const showPreview = ref(false)
 const confirmDialog = ref({ visible: false, title: '', message: '', onConfirm: null })
+const externalRatings = ref(null)
+const loadingRatings = ref(false)
 
 const recordsStore = useRecordsStore()
 const episodesStore = useEpisodesStore()
@@ -263,6 +267,16 @@ async function initPage() {
   await loadEpisodeRecords()
   loaded.value = true
 
+  if (hasOmdbKey() && show.value) {
+    loadingRatings.value = true
+    const cat = show.value.category || 'tv'
+    const type = cat === 'tv' ? 'series' : cat === 'book' ? '' : 'movie'
+    if (type) {
+      externalRatings.value = await getRatingsByTitle(show.value.name, type)
+    }
+    loadingRatings.value = false
+  }
+
   await nextTick()
   skipWatchers = false
 
@@ -448,6 +462,27 @@ onBeforeRouteLeave(async (to, from, next) => {
             />
             <span>10</span>
           </div>
+        </div>
+
+        <div v-if="externalRatings" class="p-4 border-b border-gray-200 dark:border-gray-800">
+          <label class="block text-xs text-gray-500 dark:text-gray-400 mb-2">外部评分</label>
+          <div class="space-y-1.5">
+            <div v-if="externalRatings.imdbRating" class="flex items-center justify-between">
+              <span class="text-xs text-yellow-600 dark:text-yellow-400 font-medium">IMDb</span>
+              <span class="text-sm font-bold text-yellow-500">{{ externalRatings.imdbRating }}/10</span>
+            </div>
+            <div v-if="externalRatings.rtRating" class="flex items-center justify-between">
+              <span class="text-xs text-red-500 font-medium">烂番茄</span>
+              <span class="text-sm font-bold text-red-400">{{ externalRatings.rtRating }}</span>
+            </div>
+            <div v-if="externalRatings.metacritic" class="flex items-center justify-between">
+              <span class="text-xs text-blue-500 font-medium">Metacritic</span>
+              <span class="text-sm font-bold text-blue-400">{{ externalRatings.metacritic }}</span>
+            </div>
+          </div>
+        </div>
+        <div v-else-if="loadingRatings" class="p-4 border-b border-gray-200 dark:border-gray-800">
+          <p class="text-xs text-gray-400 dark:text-gray-500">加载外部评分...</p>
         </div>
 
         <div class="p-4 border-b border-gray-200 dark:border-gray-800">
