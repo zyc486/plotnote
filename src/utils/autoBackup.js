@@ -1,5 +1,5 @@
-import { collectExportData, importFromJSON } from './exportImport'
-import { syncNow, isConfigured } from './githubSync'
+import { collectExportData, importFromData } from './exportImport'
+import { smartSync, isConfigured } from './githubSync'
 
 const BACKUP_KEY = 'plotnote_auto_backup'
 const MAX_BACKUP_SIZE = 4 * 1024 * 1024
@@ -38,11 +38,31 @@ function scheduleGitHubSync() {
   githubSyncTimer = setTimeout(async () => {
     try {
       const data = await collectExportData()
-      await syncNow(data)
+      const result = await smartSync(data)
+      if (result && result.direction === 'download') {
+        await importFromData(result.data)
+        window.dispatchEvent(new CustomEvent('plotnote-sync-down', { detail: result.data }))
+      }
     } catch (e) {
       console.warn('GitHub 同步失败:', e.message)
     }
   }, GITHUB_SYNC_DELAY)
+}
+
+export async function pullFromGitHub() {
+  if (!isConfigured()) return null
+  try {
+    const data = await collectExportData()
+    const result = await smartSync(data)
+    if (result && result.direction === 'download') {
+      await importFromData(result.data)
+      return result.data
+    }
+    return null
+  } catch (e) {
+    console.warn('GitHub 拉取失败:', e.message)
+    return null
+  }
 }
 
 export function getBackupInfo() {

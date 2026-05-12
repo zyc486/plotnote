@@ -6,6 +6,16 @@ const API = 'https://api.github.com'
 const FILE_NAME = 'data.json'
 const REPO_NAME = 'plotnote-data'
 
+function simpleHash(str) {
+  let hash = 0
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash |= 0
+  }
+  return hash.toString(36)
+}
+
 let syncing = false
 
 export function getToken() {
@@ -128,6 +138,8 @@ async function putFile(token, repo, path, content, sha, message) {
   return await res.json()
 }
 
+let lastUploadedHash = ''
+
 export async function uploadData(data) {
   if (syncing) return null
   syncing = true
@@ -138,6 +150,11 @@ export async function uploadData(data) {
     if (!token || !repo) throw new Error('未配置 GitHub')
 
     const payload = JSON.stringify(data, null, 2)
+    const payloadHash = simpleHash(payload)
+    if (payloadHash === lastUploadedHash) {
+      return { lastSync: Date.now(), direction: 'upload', success: true, skipped: true }
+    }
+
     const existing = await getFile(token, repo, FILE_NAME)
     const sha = existing ? existing.sha : null
 
@@ -149,6 +166,7 @@ export async function uploadData(data) {
       success: true,
     }
     saveSyncStatus(status)
+    lastUploadedHash = payloadHash
     return status
   } catch (e) {
     const status = {
@@ -194,6 +212,56 @@ export async function downloadData() {
       error: e.message,
     }
     saveSyncStatus(status)
+    throw e
+  } finally {
+    syncing = false
+  }
+}
+
+export async function smartSync(localData) {
+  if (!isConfigured()) return null
+  if (syncing) return null
+  syncing = true
+
+  try {
+    const token = getToken()
+    const repo = getRepo()
+    if (!token || !repo) throw new Error('未配置 GitHub')
+
+    const existing = await getFile(token, repo, FILE_NAME)
+
+    if (!existing) {
+      const payload = JSON.stringify(localData, null, 2)
+      await putFile(token, repo, FILE_NAME, payload, null, `PlotNote sync ${new Date().toLocaleString('zh-CN')}`)
+      lastUploadedHash = simpleHash(payload)
+      saveSyncStatus({ lastSync: Date.now(), direction: 'upload', success: true })
+      return { direction: 'upload', data: localData }
+    }
+
+    const remoteContent = decodeURIComponent(escape(atob(existing.content)))
+    const remoteData = JSON.parse(remoteContent)
+
+    const localTime = new Date(localData.exportedAt || 0).getTime()
+    const remoteTime = new Date(remoteData.exportedAt || 0).getTime()
+
+    if (remoteTime > localTime) {
+      saveSyncStatus({ lastSync: Date.now(), direction: 'download', success: true })
+      return { direction: 'download', data: remoteData }
+    }
+
+    const payload = JSON.stringify(localData, null, 2)
+    const payloadHash = simpleHash(payload)
+    if (payloadHash === lastUploadedHash) {
+      saveSyncStatus({ lastSync: Date.now(), direction: 'skip', success: true })
+      return { direction: 'skip', data: localData }
+    }
+
+    await putFile(token, repo, FILE_NAME, payload, existing.sha, `PlotNote sync ${new Date().toLocaleString('zh-CN')}`)
+    lastUploadedHash = payloadHash
+    saveSyncStatus({ lastSync: Date.now(), direction: 'upload', success: true })
+    return { direction: 'upload', data: localData }
+  } catch (e) {
+    saveSyncStatus({ lastSync: Date.now(), direction: 'sync', success: false, error: e.message })
     throw e
   } finally {
     syncing = false

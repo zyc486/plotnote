@@ -12,7 +12,7 @@ import { searchBooks } from '../utils/googleBooks'
 import { getTerminology, progressLabel } from '../utils/terminology'
 import { CATEGORIES, SHOW_STATUSES } from '../db'
 import { debounce } from '../utils/debounce'
-import { getBackupStatus, checkAndRestore, formatBackupTime } from '../utils/autoBackup'
+import { getBackupStatus, checkAndRestore, formatBackupTime, pullFromGitHub } from '../utils/autoBackup'
 import GenreSelector from '../components/GenreSelector.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import CoverImage from '../components/CoverImage.vue'
@@ -72,6 +72,14 @@ onMounted(async () => {
   await store.fetchShows()
   seriesList.value = await store.getAllSeries()
   backupStatus.value = getBackupStatus()
+
+  const remoteData = await pullFromGitHub()
+  if (remoteData) {
+    await store.fetchShows()
+    seriesList.value = await store.getAllSeries()
+    props.toast?.('已从 GitHub 同步最新数据', 'success')
+  }
+
   const backup = await checkAndRestore()
   if (backup) {
     pendingBackupData.value = backup
