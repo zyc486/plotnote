@@ -555,35 +555,35 @@ const manualItemLabel = computed(() => {
 </script>
 
 <template>
-  <div class="max-w-2xl mx-auto p-4 sm:p-6">
-    <header class="flex items-center justify-between mb-6 sm:mb-8 gap-2">
-      <h1 class="text-xl sm:text-2xl font-bold flex-shrink-0">PlotNote</h1>
-      <div class="flex items-center gap-1 sm:gap-2 flex-wrap justify-end">
-        <button @click="goToSearch" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 transition">搜索</button>
-        <button @click="goToStats" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 transition">统计</button>
-        <router-link to="/timeline" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 transition hidden sm:inline">时间线</router-link>
-        <router-link to="/settings" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 transition">设置</router-link>
-        <button @click="openForm" class="bg-gray-800 hover:bg-gray-700 text-white dark:bg-indigo-600 dark:hover:bg-indigo-500 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition">+ 添加</button>
+  <div class="max-w-2xl mx-auto p-6">
+    <header class="flex items-center justify-between mb-8">
+      <h1 class="text-2xl font-bold">PlotNote</h1>
+      <div class="flex items-center gap-2">
+        <button @click="goToSearch" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-sm px-3 py-2 transition">搜索</button>
+        <button @click="goToStats" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-sm px-3 py-2 transition">统计</button>
+        <router-link to="/timeline" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-sm px-3 py-2 transition">时间线</router-link>
+        <router-link to="/settings" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-sm px-3 py-2 transition">设置</router-link>
+        <button @click="openForm" class="bg-gray-800 hover:bg-gray-700 text-white dark:bg-indigo-600 dark:hover:bg-indigo-500 px-4 py-2 rounded-lg text-sm font-medium transition">+ 添加</button>
       </div>
     </header>
 
-    <div v-if="store.shows.length > 0" class="flex items-center gap-1.5 sm:gap-2 mb-4 sm:mb-6 overflow-x-auto pb-1 scrollbar-hide">
-      <button @click="activeCategory = ''" class="px-2.5 sm:px-3 py-1.5 text-xs rounded-full whitespace-nowrap transition flex-shrink-0" :class="activeCategory === '' ? 'bg-gray-800 text-white dark:bg-indigo-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'">全部 ({{ store.shows.length }})</button>
-      <button v-for="cat in CATEGORIES" :key="cat.key" @click="activeCategory = cat.key" class="px-2.5 sm:px-3 py-1.5 text-xs rounded-full whitespace-nowrap transition flex-shrink-0" :class="activeCategory === cat.key ? 'bg-gray-800 text-white dark:bg-indigo-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'">{{ cat.label }} ({{ categoryCount[cat.key] || 0 }})</button>
+    <div v-if="store.shows.length > 0" class="flex items-center gap-2 mb-6 overflow-x-auto pb-1">
+      <button @click="activeCategory = ''" class="px-3 py-1.5 text-xs rounded-full whitespace-nowrap transition" :class="activeCategory === '' ? 'bg-gray-800 text-white dark:bg-indigo-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'">全部 ({{ store.shows.length }})</button>
+      <button v-for="cat in CATEGORIES" :key="cat.key" @click="activeCategory = cat.key" class="px-3 py-1.5 text-xs rounded-full whitespace-nowrap transition" :class="activeCategory === cat.key ? 'bg-gray-800 text-white dark:bg-indigo-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'">{{ cat.label }} ({{ categoryCount[cat.key] || 0 }})</button>
     </div>
 
-    <div v-if="store.shows.length > 0" class="flex items-center gap-1.5 sm:gap-2 mb-4 sm:mb-6 overflow-x-auto pb-1 scrollbar-hide">
-      <button @click="activeStatus = ''" class="px-2.5 sm:px-3 py-1.5 text-xs rounded-full whitespace-nowrap transition flex-shrink-0" :class="activeStatus === '' ? 'bg-gray-800 text-white dark:bg-indigo-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'">全部状态</button>
-      <button v-for="st in SHOW_STATUSES" :key="st.key" @click="activeStatus = st.key" class="px-2.5 sm:px-3 py-1.5 text-xs rounded-full whitespace-nowrap transition flex-shrink-0" :class="activeStatus === st.key ? 'bg-gray-800 text-white dark:bg-indigo-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'">{{ st.label }} ({{ statusCount[st.key] || 0 }})</button>
+    <div v-if="store.shows.length > 0" class="flex items-center gap-2 mb-6 overflow-x-auto pb-1">
+      <button @click="activeStatus = ''" class="px-3 py-1.5 text-xs rounded-full whitespace-nowrap transition" :class="activeStatus === '' ? 'bg-gray-800 text-white dark:bg-indigo-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'">全部状态</button>
+      <button v-for="st in SHOW_STATUSES" :key="st.key" @click="activeStatus = st.key" class="px-3 py-1.5 text-xs rounded-full whitespace-nowrap transition" :class="activeStatus === st.key ? 'bg-gray-800 text-white dark:bg-indigo-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'">{{ st.label }} ({{ statusCount[st.key] || 0 }})</button>
     </div>
 
-    <div v-if="store.shows.length > 0" class="flex items-center gap-1.5 sm:gap-2 mb-4 sm:mb-6 flex-wrap">
+    <div v-if="store.shows.length > 0" class="flex items-center gap-2 mb-6">
       <span class="text-xs text-gray-500 dark:text-gray-400">排序:</span>
-      <button @click="sortBy = 'name'" class="px-2 sm:px-2.5 py-1 text-xs rounded-full transition" :class="sortBy === 'name' ? 'bg-gray-800 text-white dark:bg-indigo-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'">名称</button>
-      <button @click="sortBy = 'avgRating'" class="px-2 sm:px-2.5 py-1 text-xs rounded-full transition" :class="sortBy === 'avgRating' ? 'bg-gray-800 text-white dark:bg-indigo-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'">评分</button>
-      <button @click="sortBy = 'lastWatchedAt'" class="px-2 sm:px-2.5 py-1 text-xs rounded-full transition" :class="sortBy === 'lastWatchedAt' ? 'bg-gray-800 text-white dark:bg-indigo-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'">最近观看</button>
+      <button @click="sortBy = 'name'" class="px-2.5 py-1 text-xs rounded-full transition" :class="sortBy === 'name' ? 'bg-gray-800 text-white dark:bg-indigo-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'">名称</button>
+      <button @click="sortBy = 'avgRating'" class="px-2.5 py-1 text-xs rounded-full transition" :class="sortBy === 'avgRating' ? 'bg-gray-800 text-white dark:bg-indigo-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'">评分</button>
+      <button @click="sortBy = 'lastWatchedAt'" class="px-2.5 py-1 text-xs rounded-full transition" :class="sortBy === 'lastWatchedAt' ? 'bg-gray-800 text-white dark:bg-indigo-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'">最近观看</button>
       <span class="flex-1"></span>
-      <button v-if="store.shows.some(s => !s.coverImage)" @click="fetchMissingCovers" :disabled="fetchingCovers" class="px-2 sm:px-2.5 py-1 text-xs rounded-full transition flex items-center gap-1" :class="fetchingCovers ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 cursor-not-allowed' : 'bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'">
+      <button v-if="store.shows.some(s => !s.coverImage)" @click="fetchMissingCovers" :disabled="fetchingCovers" class="px-2.5 py-1 text-xs rounded-full transition flex items-center gap-1" :class="fetchingCovers ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 cursor-not-allowed' : 'bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'">
         <span v-if="fetchingCovers" class="inline-block animate-spin rounded-full h-3 w-3 border border-gray-400 border-t-transparent"></span>
         {{ fetchingCovers ? '补全中...' : '补全封面' }}
       </button>
@@ -601,25 +601,25 @@ const manualItemLabel = computed(() => {
     <div v-else class="space-y-3">
       <template v-for="item in displayItems" :key="item.type === 'series' ? 'series-' + item.seriesId : 'show-' + item.show.id">
 
-        <div v-if="item.type === 'show'" @click="goToShow(item.show.id)" class="bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-750 rounded-xl p-3 sm:p-5 cursor-pointer transition border border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600">
-          <div class="flex items-start gap-3 sm:gap-4">
+        <div v-if="item.type === 'show'" @click="goToShow(item.show.id)" class="bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-750 rounded-xl p-5 cursor-pointer transition border border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600">
+          <div class="flex items-center gap-4">
             <CoverImage :src="item.show.coverImage" :name="item.show.name" size="md" />
             <div class="flex-1 min-w-0">
-              <div class="flex items-start justify-between gap-2">
+              <div class="flex items-center justify-between">
                 <div class="flex-1 min-w-0">
-                  <div class="flex items-center gap-1.5 sm:gap-2 mb-1 flex-wrap">
-                    <h2 class="text-base sm:text-lg font-medium truncate">{{ item.show.name }}</h2>
-                    <div class="relative flex-shrink-0">
+                  <div class="flex items-center gap-2 mb-1">
+                    <h2 class="text-lg font-medium truncate">{{ item.show.name }}</h2>
+                    <div class="relative">
                       <span
                         v-if="item.show.status"
                         @click="toggleStatusDropdown(item.show.id, $event)"
-                        class="px-1.5 sm:px-2 py-0.5 text-xs rounded-full whitespace-nowrap cursor-pointer hover:opacity-80 transition"
+                        class="px-2 py-0.5 text-xs rounded-full whitespace-nowrap cursor-pointer hover:opacity-80 transition"
                         :class="statusColor(item.show.status)"
                       >{{ statusLabel(item.show.status) }} ▾</span>
                       <span
                         v-else
                         @click="toggleStatusDropdown(item.show.id, $event)"
-                        class="px-1.5 sm:px-2 py-0.5 text-xs rounded-full whitespace-nowrap cursor-pointer bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400 hover:opacity-80 transition"
+                        class="px-2 py-0.5 text-xs rounded-full whitespace-nowrap cursor-pointer bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400 hover:opacity-80 transition"
                       >设置状态 ▾</span>
                       <div
                         v-if="statusDropdownId === item.show.id"
@@ -634,33 +634,31 @@ const manualItemLabel = computed(() => {
                         >{{ st.label }}</button>
                       </div>
                     </div>
-                    <span v-if="item.show.category" class="px-1.5 sm:px-2 py-0.5 text-xs rounded-full bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400 whitespace-nowrap hidden sm:inline">{{ categoryLabel(item.show.category) }}</span>
+                    <span v-if="item.show.category" class="px-2 py-0.5 text-xs rounded-full bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400 whitespace-nowrap">{{ categoryLabel(item.show.category) }}</span>
                   </div>
-                  <div v-if="item.show.region || parseGenres(item.show).length > 0 || (item.show.category === 'book' && item.show.author)" class="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2 flex-wrap">
-                    <span v-if="item.show.category === 'book' && item.show.author" class="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[120px] sm:max-w-none">作者：{{ item.show.author }}</span>
+                  <div v-if="item.show.region || parseGenres(item.show).length > 0 || (item.show.category === 'book' && item.show.author)" class="flex items-center gap-2 mb-2 flex-wrap">
+                    <span v-if="item.show.category === 'book' && item.show.author" class="text-xs text-gray-500 dark:text-gray-400">作者：{{ item.show.author }}</span>
                     <span v-if="item.show.region" class="text-xs text-gray-500 dark:text-gray-400">地区：{{ item.show.region }}</span>
-                    <span v-if="parseGenres(item.show).length > 0" class="text-xs text-gray-500 dark:text-gray-400 hidden sm:inline">类型：{{ parseGenres(item.show).join(' / ') }}</span>
+                    <span v-if="parseGenres(item.show).length > 0" class="text-xs text-gray-500 dark:text-gray-400">类型：{{ parseGenres(item.show).join(' / ') }}</span>
                   </div>
-                  <div class="flex items-center gap-2 sm:gap-4 text-sm">
-                    <span class="text-gray-500 dark:text-gray-400 text-xs sm:text-sm">{{ showProgressLabel(item.show) }}</span>
+                  <div class="flex items-center gap-4 text-sm">
+                    <span class="text-gray-500 dark:text-gray-400">{{ showProgressLabel(item.show) }}</span>
                     <div class="flex items-center gap-1">
-                      <div class="w-16 sm:w-24 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                      <div class="w-24 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                         <div class="h-full bg-indigo-500 rounded-full transition-all duration-500" :style="{ width: progressPercent(item.show) + '%' }"></div>
                       </div>
                       <span class="text-xs text-gray-400 dark:text-gray-500">{{ progressPercent(item.show) }}%</span>
                     </div>
                   </div>
                 </div>
-                <div class="flex flex-col sm:flex-row items-end sm:items-center gap-1 sm:gap-3 ml-2 flex-shrink-0">
+                <div class="flex items-center gap-3 ml-4 flex-shrink-0">
                   <div v-if="item.show.avgRating > 0" class="text-right">
-                    <span class="text-xl sm:text-2xl font-bold text-amber-400">{{ item.show.avgRating }}</span>
-                    <span class="text-[10px] sm:text-xs text-gray-400 dark:text-gray-500 ml-0.5">均分</span>
+                    <span class="text-2xl font-bold text-amber-400">{{ item.show.avgRating }}</span>
+                    <span class="text-xs text-gray-400 dark:text-gray-500 ml-1">均分</span>
                   </div>
-                  <div v-else class="text-xs sm:text-sm text-gray-400 dark:text-gray-500 hidden sm:block">点击开始记录</div>
-                  <div class="flex items-center gap-2">
-                    <button @click="openEditMeta(item.show, $event)" class="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 text-xs sm:text-sm transition" title="编辑分类">编辑</button>
-                    <button @click="handleDelete(item.show.id, $event)" class="text-red-400 hover:text-red-300 text-xs sm:text-sm transition">删除</button>
-                  </div>
+                  <div v-else class="text-sm text-gray-400 dark:text-gray-500">点击开始记录</div>
+                  <button @click="openEditMeta(item.show, $event)" class="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 text-sm transition" title="编辑分类">编辑</button>
+                  <button @click="handleDelete(item.show.id, $event)" class="text-red-400 hover:text-red-300 text-sm transition">删除</button>
                 </div>
               </div>
             </div>
@@ -668,26 +666,26 @@ const manualItemLabel = computed(() => {
         </div>
 
         <div v-else>
-          <div @click="toggleSeries(item.seriesId)" class="bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-750 rounded-xl p-3 sm:p-5 cursor-pointer transition border border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600">
-            <div class="flex items-start gap-3 sm:gap-4">
+          <div @click="toggleSeries(item.seriesId)" class="bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-750 rounded-xl p-5 cursor-pointer transition border border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600">
+            <div class="flex items-center gap-4">
               <CoverImage :src="item.coverImage" :name="item.seriesName" size="md" />
               <div class="flex-1 min-w-0">
-                <div class="flex items-start justify-between gap-2">
+                <div class="flex items-center justify-between">
                   <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-1.5 sm:gap-2 mb-1 flex-wrap">
-                      <h2 class="text-base sm:text-lg font-medium truncate">{{ item.seriesName }}</h2>
-                      <span class="px-1.5 sm:px-2 py-0.5 text-xs rounded-full bg-indigo-100 text-indigo-600 dark:bg-indigo-600/30 dark:text-indigo-300 whitespace-nowrap">系列</span>
-                      <span v-if="item.category" class="px-1.5 sm:px-2 py-0.5 text-xs rounded-full bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400 whitespace-nowrap hidden sm:inline">{{ categoryLabel(item.category) }}</span>
+                    <div class="flex items-center gap-2 mb-1">
+                      <h2 class="text-lg font-medium truncate">{{ item.seriesName }}</h2>
+                      <span class="px-2 py-0.5 text-xs rounded-full bg-indigo-100 text-indigo-600 dark:bg-indigo-600/30 dark:text-indigo-300 whitespace-nowrap">系列</span>
+                      <span v-if="item.category" class="px-2 py-0.5 text-xs rounded-full bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400 whitespace-nowrap">{{ categoryLabel(item.category) }}</span>
                     </div>
-                    <div class="flex items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                    <div class="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
                       <span>共 {{ item.shows.length }} 部</span>
                       <span v-if="item.totalEpisodes">{{ item.ratedCount }} / {{ item.totalEpisodes }} 集已评</span>
                     </div>
                   </div>
-                  <div class="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                  <div class="flex items-center gap-3 ml-4 flex-shrink-0">
                     <div v-if="item.avgRating > 0" class="text-right">
-                      <span class="text-xl sm:text-2xl font-bold text-amber-400">{{ item.avgRating }}</span>
-                      <span class="text-[10px] sm:text-xs text-gray-400 dark:text-gray-500 ml-0.5">均分</span>
+                      <span class="text-2xl font-bold text-amber-400">{{ item.avgRating }}</span>
+                      <span class="text-xs text-gray-400 dark:text-gray-500 ml-1">均分</span>
                     </div>
                     <span class="text-gray-400 dark:text-gray-500 text-sm transition-transform duration-200" :class="{ 'rotate-90': expandedSeries[item.seriesId] }">▶</span>
                   </div>

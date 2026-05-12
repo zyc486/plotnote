@@ -204,19 +204,19 @@ function handleJump() {
 </script>
 
 <template>
-  <div class="max-w-2xl mx-auto p-4 sm:p-6">
+  <div class="max-w-2xl mx-auto p-6">
     <button
       @click="goBack"
-      class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-sm mb-4 sm:mb-6 block transition"
+      class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-sm mb-6 block transition"
     >
       ← 返回
     </button>
 
-    <div v-if="show" class="mb-4 sm:mb-6">
-      <div class="flex gap-3 sm:gap-4">
+    <div v-if="show" class="mb-6">
+      <div class="flex gap-4">
         <CoverImage :src="show.coverImage" :name="show.name" size="lg" clickable @click="showCoverLightbox = true" />
           <div class="flex-1 min-w-0">
-          <h1 class="text-xl sm:text-2xl font-bold">{{ show.name }}</h1>
+          <h1 class="text-2xl font-bold">{{ show.name }}</h1>
           <div class="flex items-center gap-2 mt-1 flex-wrap">
             <span v-if="show.category" class="px-2 py-0.5 text-xs rounded-full bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400">{{ categoryLabel(show.category) }}</span>
             <span v-if="show.status" class="px-2 py-0.5 text-xs rounded-full" :class="statusColor(show.status)">{{ statusLabel(show.status) }}</span>
@@ -248,7 +248,7 @@ function handleJump() {
       </div>
     </div>
 
-    <div v-if="needsSeasonPrefix" class="mb-4 sm:mb-6 space-y-3">
+    <div v-if="needsSeasonPrefix" class="mb-6 space-y-3">
       <div class="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
         <span class="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap">筛选：</span>
         <button
@@ -279,15 +279,15 @@ function handleJump() {
         />
         <button
           @click="handleJump"
-          class="px-3 sm:px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white dark:bg-indigo-600 dark:hover:bg-indigo-500 rounded-lg text-sm font-medium transition flex-shrink-0"
+          class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white dark:bg-indigo-600 dark:hover:bg-indigo-500 rounded-lg text-sm font-medium transition"
         >
           跳转
         </button>
       </div>
-      <p v-if="jumpError" class="text-xs text-red-500 dark:text-red-400 mt-1">{{ jumpError }}</p>
+      <p v-if="jumpError" class="text-xs text-red-500 dark:text-red-400">{{ jumpError }}</p>
     </div>
 
-    <div v-else-if="episodes.length > 1" class="mb-4 sm:mb-6 space-y-3">
+    <div v-else-if="episodes.length > 1" class="mb-6 space-y-3">
       <div class="flex items-center gap-2">
         <input
           v-model="jumpInput"
@@ -298,21 +298,21 @@ function handleJump() {
         />
         <button
           @click="handleJump"
-          class="px-3 sm:px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white dark:bg-indigo-600 dark:hover:bg-indigo-500 rounded-lg text-sm font-medium transition flex-shrink-0"
+          class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white dark:bg-indigo-600 dark:hover:bg-indigo-500 rounded-lg text-sm font-medium transition"
         >
           跳转
         </button>
       </div>
-      <p v-if="jumpError" class="text-xs text-red-500 dark:text-red-400 mt-1">{{ jumpError }}</p>
+      <p v-if="jumpError" class="text-xs text-red-500 dark:text-red-400">{{ jumpError }}</p>
     </div>
 
     <div v-if="episodes.length === 0" class="text-center text-gray-400 dark:text-gray-500 py-12">
       暂无数据
     </div>
 
-    <div v-for="season in filteredSeasonKeys" :key="season" class="mb-6 sm:mb-8">
-      <h2 v-if="needsSeasonPrefix" class="text-base sm:text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2 sm:mb-3">第 {{ season }} {{ term.seasonLabel }}</h2>
-      <div class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-1.5">
+    <div v-for="season in filteredSeasonKeys" :key="season" class="mb-8">
+      <h2 v-if="needsSeasonPrefix" class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-3">第 {{ season }} {{ term.seasonLabel }}</h2>
+      <div class="grid grid-cols-8 gap-1.5">
         <div
           v-for="ep in episodeGroups[season]"
           :key="ep.id"
@@ -329,7 +329,7 @@ function handleJump() {
       </div>
     </div>
 
-    <div v-if="showCoverLightbox" @click="showCoverLightbox = false" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 sm:p-8 cursor-pointer">
+    <div v-if="showCoverLightbox" @click="showCoverLightbox = false" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-8 cursor-pointer">
       <img :src="show.coverImage" class="max-w-full max-h-full object-contain rounded-lg shadow-2xl" @click.stop />
     </div>
   </div>

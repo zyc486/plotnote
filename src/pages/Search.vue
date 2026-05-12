@@ -169,30 +169,30 @@ function goBack() {
 </script>
 
 <template>
-  <div class="max-w-2xl mx-auto p-4 sm:p-6">
-    <button @click="goBack" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-sm mb-4 sm:mb-6 block transition">
+  <div class="max-w-2xl mx-auto p-6">
+    <button @click="goBack" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-sm mb-6 block transition">
       ← 返回首页
     </button>
 
-    <h1 class="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">搜索</h1>
+    <h1 class="text-2xl font-bold mb-6">搜索</h1>
 
-    <div class="space-y-3 sm:space-y-4 mb-6 sm:mb-8">
-      <div class="flex gap-2 sm:gap-3">
+    <div class="space-y-4 mb-8">
+      <div class="flex gap-3">
         <input
           v-model="query"
           type="text"
           placeholder="搜索名称、评论、标签、地区、类型..."
-          class="flex-1 bg-gray-100 dark:bg-gray-800 rounded-lg px-3 sm:px-4 py-2 sm:py-3 outline-none focus:ring-2 focus:ring-indigo-500 border border-gray-200 dark:border-gray-700 text-sm"
+          class="flex-1 bg-gray-100 dark:bg-gray-800 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500 border border-gray-200 dark:border-gray-700"
           @input="doSearch"
         />
       </div>
 
-      <div class="flex items-center gap-2 sm:gap-4 flex-wrap">
-        <div class="flex items-center gap-1.5 sm:gap-2">
-          <label class="text-xs sm:text-sm text-gray-500 dark:text-gray-400">分类</label>
+      <div class="flex items-center gap-4 flex-wrap">
+        <div class="flex items-center gap-2">
+          <label class="text-sm text-gray-500 dark:text-gray-400">分类</label>
           <select
             v-model="selectedCategory"
-            class="bg-gray-100 dark:bg-gray-800 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm outline-none focus:ring-2 focus:ring-indigo-500 border border-gray-200 dark:border-gray-700"
+            class="bg-gray-100 dark:bg-gray-800 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 border border-gray-200 dark:border-gray-700"
             @change="doSearch"
           >
             <option value="">全部</option>
@@ -200,24 +200,24 @@ function goBack() {
           </select>
         </div>
 
-        <div class="flex items-center gap-1.5 sm:gap-2">
-          <label class="text-xs sm:text-sm text-gray-500 dark:text-gray-400">最低评分</label>
+        <div class="flex items-center gap-2">
+          <label class="text-sm text-gray-500 dark:text-gray-400">最低评分</label>
           <input
             v-model.number="minRating"
             type="number"
             min="0"
             max="10"
             step="0.5"
-            class="w-16 sm:w-20 bg-gray-100 dark:bg-gray-800 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm outline-none focus:ring-2 focus:ring-indigo-500 border border-gray-200 dark:border-gray-700"
+            class="w-20 bg-gray-100 dark:bg-gray-800 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 border border-gray-200 dark:border-gray-700"
             @input="doSearch"
           />
         </div>
 
-        <div class="flex items-center gap-1.5 sm:gap-2">
-          <label class="text-xs sm:text-sm text-gray-500 dark:text-gray-400">按标签</label>
+        <div class="flex items-center gap-2">
+          <label class="text-sm text-gray-500 dark:text-gray-400">按标签</label>
           <select
             v-model="selectedTag"
-            class="bg-gray-100 dark:bg-gray-800 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm outline-none focus:ring-2 focus:ring-indigo-500 border border-gray-200 dark:border-gray-700"
+            class="bg-gray-100 dark:bg-gray-800 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 border border-gray-200 dark:border-gray-700"
             @change="doSearch"
           >
             <option value="">全部</option>

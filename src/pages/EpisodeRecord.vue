@@ -8,6 +8,7 @@ import { debounce } from '../utils/debounce'
 import { saveDraft, clearDraft, loadDraft } from '../utils/draftCache'
 import { getTerminology } from '../utils/terminology'
 import ImageManager from '../components/ImageManager.vue'
+import TagSelector from '../components/TagSelector.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import { renderMarkdown } from '../utils/markdown'
 
@@ -21,6 +22,7 @@ const show = ref(null)
 const rating = ref(0)
 const review = ref('')
 const images = ref([])
+const tags = ref([])
 const watchedDate = ref('')
 const loaded = ref(false)
 const dirty = ref(false)
@@ -71,16 +73,13 @@ function parseJsonSafe(str) {
 }
 
 async function forceSave() {
-  if (!episode.value || !loaded.value) return
-  if (dirty.value && !currentRecordId.value) {
-    await ensureRecordExists()
-  }
-  if (!currentRecordId.value) return
+  if (!currentRecordId.value || !episode.value) return
   try {
     await db.records.update(currentRecordId.value, {
       rating: rating.value,
       review: review.value,
       images: JSON.stringify(images.value),
+      tags: JSON.stringify(tags.value),
       watchedDate: watchedDate.value || null,
     })
     dirty.value = false
@@ -95,19 +94,16 @@ function saveToDraft() {
     rating: rating.value,
     review: review.value,
     images: images.value,
+    tags: tags.value,
     watchedDate: watchedDate.value,
   })
 }
 
 async function ensureRecordExists() {
   if (!episode.value || !loaded.value) return
-  if (currentRecordId.value) {
-    const exists = await db.records.get(currentRecordId.value)
-    if (!exists) currentRecordId.value = null
-  }
   if (!currentRecordId.value) {
     const id = await recordsStore.createRecord(
-      episode.value.id, rating.value, review.value, images.value, [], watchedDate.value
+      episode.value.id, rating.value, review.value, images.value, tags.value, watchedDate.value
     )
     currentRecordId.value = id
     await loadEpisodeRecords()
@@ -143,6 +139,15 @@ const debouncedSaveImages = debounce(async (val) => {
   saveToDraft()
 }, 1000)
 
+const debouncedSaveTags = debounce(async (val) => {
+  if (skipWatchers) return
+  if (currentRecordId.value) {
+    await recordsStore.updateRecord(currentRecordId.value, { tags: val })
+    dirty.value = false
+  }
+  saveToDraft()
+}, 500)
+
 const debouncedSaveWatchedDate = debounce(async (val) => {
   if (skipWatchers) return
   if (currentRecordId.value) {
@@ -171,6 +176,12 @@ watch(images, (val) => {
   debouncedSaveImages(val)
 }, { deep: true })
 
+watch(tags, (val) => {
+  if (skipWatchers) return
+  dirty.value = true
+  debouncedSaveTags(val)
+}, { deep: true })
+
 watch(watchedDate, (val) => {
   if (skipWatchers) return
   dirty.value = true
@@ -192,6 +203,7 @@ async function loadEpisodeRecords() {
   episodeRecords.value = recordsStore.episodeRecords.map(r => ({
     ...r,
     images: parseJsonSafe(r.images),
+    tags: parseJsonSafe(r.tags),
   }))
 }
 
@@ -200,11 +212,6 @@ function watchCount(episodeId) {
 }
 
 async function initPage() {
-  debouncedSaveRating.cancel()
-  debouncedSaveReview.cancel()
-  debouncedSaveImages.cancel()
-  debouncedSaveWatchedDate.cancel()
-
   loaded.value = false
   skipWatchers = true
 
@@ -229,6 +236,7 @@ async function initPage() {
   rating.value = 0
   review.value = ''
   images.value = []
+  tags.value = []
   watchedDate.value = new Date().toISOString().split('T')[0]
   dirty.value = false
 
@@ -239,6 +247,7 @@ async function initPage() {
     rating.value = activeRecord.rating ?? 0
     review.value = activeRecord.review ?? ''
     images.value = parseJsonSafe(activeRecord.images)
+    tags.value = parseJsonSafe(activeRecord.tags)
     watchedDate.value = activeRecord.watchedDate || new Date().toISOString().split('T')[0]
   } else {
     const draft = loadDraft(episodeId)
@@ -246,6 +255,7 @@ async function initPage() {
       rating.value = draft.rating ?? 0
       review.value = draft.review ?? ''
       images.value = draft.images ?? []
+      tags.value = draft.tags ?? []
       if (draft.watchedDate) watchedDate.value = draft.watchedDate
     }
   }
@@ -272,29 +282,11 @@ async function createNewRecord() {
   rating.value = 0
   review.value = ''
   images.value = []
+  tags.value = []
   dirty.value = false
 
   await loadEpisodeRecords()
   props.toast?.('新记录已创建', 'success')
-}
-
-async function switchRecord(recordId) {
-  if (!episode.value || recordId === currentRecordId.value) return
-  await forceSave()
-
-  currentRecordId.value = recordId
-
-  const record = await db.records.get(recordId)
-  if (record) {
-    skipWatchers = true
-    rating.value = record.rating ?? 0
-    review.value = record.review ?? ''
-    images.value = parseJsonSafe(record.images)
-    watchedDate.value = record.watchedDate || new Date().toISOString().split('T')[0]
-    await nextTick()
-    skipWatchers = false
-  }
-  dirty.value = false
 }
 
 async function switchActiveRecord(recordId) {
@@ -311,6 +303,7 @@ async function switchActiveRecord(recordId) {
     rating.value = record.rating ?? 0
     review.value = record.review ?? ''
     images.value = parseJsonSafe(record.images)
+    tags.value = parseJsonSafe(record.tags)
     watchedDate.value = record.watchedDate || new Date().toISOString().split('T')[0]
     await nextTick()
     skipWatchers = false
@@ -336,6 +329,7 @@ async function deleteRecord(recordId) {
           rating.value = 0
           review.value = ''
           images.value = []
+          tags.value = []
           watchedDate.value = new Date().toISOString().split('T')[0]
           currentRecordId.value = null
           await nextTick()
@@ -351,10 +345,6 @@ async function deleteRecord(recordId) {
 
 async function jumpToEpisode(episodeData) {
   if (!episodeData) return
-  debouncedSaveRating.cancel()
-  debouncedSaveReview.cancel()
-  debouncedSaveImages.cancel()
-  debouncedSaveWatchedDate.cancel()
   await forceSave()
   if (episode.value) clearDraft(episode.value.id)
   router.push(`/episode/${episodeData.id}`)
@@ -401,10 +391,6 @@ onUnmounted(() => {
 })
 
 onBeforeRouteLeave(async (to, from, next) => {
-  debouncedSaveRating.cancel()
-  debouncedSaveReview.cancel()
-  debouncedSaveImages.cancel()
-  debouncedSaveWatchedDate.cancel()
   await forceSave()
   saveToDraft()
   next()
@@ -413,73 +399,75 @@ onBeforeRouteLeave(async (to, from, next) => {
 
 <template>
   <div class="h-screen flex flex-col">
-    <div class="flex items-center justify-between px-3 sm:px-6 py-2 sm:py-3 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 flex-shrink-0">
-      <button @click="goBack" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-sm transition flex items-center gap-1 flex-shrink-0">
+    <div class="flex items-center justify-between px-6 py-3 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 flex-shrink-0">
+      <button @click="goBack" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-sm transition flex items-center gap-1">
         <span>←</span>
         <span>返回</span>
       </button>
-      <div v-if="show && episode" class="flex items-center gap-1 sm:gap-2 min-w-0 mx-2">
-        <span class="font-semibold text-xs sm:text-sm truncate">{{ show.name }}</span>
-        <span class="text-gray-400 dark:text-gray-500 text-xs sm:text-sm flex-shrink-0">{{ episodeLabel }}</span>
-        <span v-if="episodeRecords.length > 1" class="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0 hidden sm:inline">
+      <div v-if="show && episode" class="flex items-center gap-2">
+        <span class="font-semibold text-sm">{{ show.name }}</span>
+        <span class="text-gray-400 dark:text-gray-500 text-sm">{{ episodeLabel }}</span>
+        <span v-if="episodeRecords.length > 1" class="text-xs text-gray-400 dark:text-gray-500">
           (第{{ watchCount(episode.id) }}次)
         </span>
       </div>
-      <div class="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+      <div class="flex items-center gap-3">
           <span v-if="dirty" class="text-xs text-amber-400">未保存</span>
           <span v-else class="text-xs text-emerald-400">已保存</span>
         </div>
     </div>
 
-    <div v-if="loaded" class="flex flex-col sm:flex-row flex-1 min-h-0">
-      <!-- 移动端：评分固定顶部 -->
-      <div class="sm:hidden bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-3 flex-shrink-0">
-        <div class="flex items-center gap-3">
-          <span class="text-3xl font-bold text-amber-400 flex-shrink-0">{{ Number(rating).toFixed(1) }}</span>
+    <div v-if="loaded" class="flex flex-1 min-h-0">
+      <div class="w-72 flex-shrink-0 border-r border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 flex flex-col overflow-y-auto">
+        <div class="p-4 border-b border-gray-200 dark:border-gray-800">
+          <label class="block text-xs text-gray-500 dark:text-gray-400 mb-2">评分</label>
+          <div
+            class="text-4xl font-bold text-amber-400 text-center mb-3 transition-transform duration-300"
+            :class="{ 'scale-110': ratingAnimation }"
+          >
+            {{ Number(rating).toFixed(1) }}
+          </div>
           <input
             v-model.number="rating"
             type="range"
             min="0"
             max="10"
             step="0.1"
-            class="flex-1 accent-indigo-500 h-6"
-            @touchstart.stop
-            @touchmove.stop
+            class="w-full accent-indigo-500"
           />
-          <input
-            :value="rating"
-            @input="rating = Number($event.target.value)"
-            type="number"
-            min="0"
-            max="10"
-            step="0.1"
-            class="w-14 text-center bg-gray-200 dark:bg-gray-700 rounded px-1 py-1 text-xs font-bold text-amber-400 outline-none focus:ring-1 focus:ring-indigo-500 flex-shrink-0"
-          />
-        </div>
-      </div>
-
-      <!-- 桌面端：左侧栏 -->
-      <div class="hidden sm:flex w-72 flex-shrink-0 border-r border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 flex-col overflow-y-auto">
-        <div class="p-4 border-b border-gray-200 dark:border-gray-800">
-          <label class="block text-xs text-gray-500 dark:text-gray-400 mb-2">评分</label>
-          <div class="text-4xl font-bold text-amber-400 text-center mb-3">{{ Number(rating).toFixed(1) }}</div>
-          <input v-model.number="rating" type="range" min="0" max="10" step="0.1" class="w-full accent-indigo-500" />
           <div class="flex justify-between text-[10px] text-gray-400 dark:text-gray-500 mt-1">
             <span>0</span>
-            <input :value="rating" @input="rating = Number($event.target.value)" type="number" min="0" max="10" step="0.1" class="w-16 text-center bg-gray-200 dark:bg-gray-700 rounded px-1 py-0.5 text-xs font-bold text-amber-400 outline-none focus:ring-1 focus:ring-indigo-500" />
+            <input
+              :value="rating"
+              @input="rating = Number($event.target.value)"
+              type="number"
+              min="0"
+              max="10"
+              step="0.1"
+              class="w-16 text-center bg-gray-200 dark:bg-gray-700 rounded px-1 py-0.5 text-xs font-bold text-amber-400 outline-none focus:ring-1 focus:ring-indigo-500"
+            />
             <span>10</span>
           </div>
         </div>
 
         <div class="p-4 border-b border-gray-200 dark:border-gray-800">
           <label class="block text-xs text-gray-500 dark:text-gray-400 mb-2">观看日期</label>
-          <input v-model="watchedDate" type="date" class="w-full bg-gray-200 dark:bg-gray-700 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+          <input
+            v-model="watchedDate"
+            type="date"
+            class="w-full bg-gray-200 dark:bg-gray-700 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+          />
         </div>
 
         <div class="p-4 flex-1">
           <div class="flex items-center justify-between mb-2">
             <label class="text-xs text-gray-500 dark:text-gray-400">多刷记录</label>
-            <button @click="createNewRecord" class="text-[10px] text-indigo-500 hover:text-indigo-400 transition">+ 新建</button>
+            <button
+              @click="createNewRecord"
+              class="text-[10px] text-indigo-500 hover:text-indigo-400 dark:text-indigo-400 dark:hover:text-indigo-300 transition"
+            >
+              + 新建
+            </button>
           </div>
 
           <div v-if="episodeRecords.length > 0" class="space-y-1.5">
@@ -492,7 +480,7 @@ onBeforeRouteLeave(async (to, from, next) => {
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
                   <span class="text-xs font-medium">第{{ episodeRecords.length - index }}次</span>
-                  <span v-if="record.id === episode?.activeRecordId" class="text-[10px] bg-gray-800 text-gray-100 dark:bg-indigo-600 px-1.5 py-0.5 rounded-full">主</span>
+                  <span v-if="record.id === episode?.activeRecordId" class="text-[10px] bg-gray-800 text-gray-100 dark:bg-indigo-600 dark:text-indigo-100 px-1.5 py-0.5 rounded-full">主</span>
                 </div>
                 <span v-if="record.rating > 0" class="text-sm font-bold text-amber-400">{{ Number(record.rating).toFixed(1) }}</span>
                 <span v-else class="text-[10px] text-gray-400">—</span>
@@ -500,49 +488,28 @@ onBeforeRouteLeave(async (to, from, next) => {
               <div class="flex items-center justify-between mt-1">
                 <span class="text-[10px] text-gray-400 dark:text-gray-500">{{ record.watchedDate || formatDate(record.createdAt) }}</span>
                 <div class="flex gap-1">
-                  <button v-if="record.id !== episode?.activeRecordId" @click.stop="switchActiveRecord(record.id)" class="text-[10px] text-indigo-500 hover:text-indigo-400 px-1 rounded transition">主</button>
-                  <button v-if="record.id !== currentRecordId" @click.stop="deleteRecord(record.id)" class="text-[10px] text-red-400 hover:text-red-300 px-1 rounded transition">删</button>
+                  <button
+                    v-if="record.id !== episode?.activeRecordId"
+                    @click.stop="switchActiveRecord(record.id)"
+                    class="text-[10px] text-indigo-500 hover:text-indigo-400 px-1 rounded transition"
+                  >主</button>
+                  <button
+                    v-if="record.id !== currentRecordId"
+                    @click.stop="deleteRecord(record.id)"
+                    class="text-[10px] text-red-400 hover:text-red-300 px-1 rounded transition"
+                  >删</button>
                 </div>
               </div>
             </div>
           </div>
-          <div v-else class="text-[10px] text-gray-400 dark:text-gray-500 text-center py-4">评分后自动创建</div>
+          <div v-else class="text-[10px] text-gray-400 dark:text-gray-500 text-center py-4">
+            评分后自动创建
+          </div>
         </div>
       </div>
 
-      <!-- 主内容区 -->
-      <div class="flex-1 flex flex-col min-w-0 min-h-0">
-        <div class="flex-1 flex flex-col p-3 sm:p-6 overflow-y-auto min-h-0">
-          <!-- 移动端：观看日期和多刷记录 -->
-          <div class="sm:hidden mb-4 space-y-3">
-            <div class="flex items-center gap-3">
-              <label class="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">日期</label>
-              <input v-model="watchedDate" type="date" class="flex-1 bg-gray-100 dark:bg-gray-800 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500 border border-gray-200 dark:border-gray-700" />
-            </div>
-
-            <div v-if="episodeRecords.length > 0">
-              <div class="flex items-center justify-between mb-2">
-                <label class="text-xs text-gray-500 dark:text-gray-400">多刷记录</label>
-                <button @click="createNewRecord" class="text-[10px] text-indigo-500 hover:text-indigo-400 transition">+ 新建</button>
-              </div>
-              <div class="flex gap-2 overflow-x-auto pb-1">
-                <div
-                  v-for="(record, index) in episodeRecords"
-                  :key="record.id"
-                  @click="switchRecord(record.id)"
-                  class="flex-shrink-0 px-3 py-2 rounded-lg cursor-pointer transition text-xs"
-                  :class="record.id === currentRecordId ? 'bg-indigo-100 dark:bg-indigo-600/20 border border-indigo-300 dark:border-indigo-500/30' : 'bg-gray-100 dark:bg-gray-800'"
-                >
-                  <div class="flex items-center gap-1">
-                    <span>第{{ episodeRecords.length - index }}次</span>
-                    <span v-if="record.id === episode?.activeRecordId" class="text-[10px] bg-gray-800 text-gray-100 dark:bg-indigo-600 px-1 py-0.5 rounded-full">主</span>
-                  </div>
-                  <div class="font-bold text-amber-400 mt-0.5">{{ record.rating > 0 ? Number(record.rating).toFixed(1) : '—' }}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
+      <div class="flex-1 flex flex-col min-w-0">
+        <div class="flex-1 flex flex-col p-6 overflow-y-auto">
           <div class="flex-1 flex flex-col">
             <div class="flex items-center justify-between mb-3">
               <label class="block text-sm text-gray-500 dark:text-gray-400">感想</label>
@@ -555,14 +522,18 @@ onBeforeRouteLeave(async (to, from, next) => {
               v-if="!showPreview"
               v-model="review"
               placeholder="写下你的感想..."
-              class="flex-1 min-h-[200px] w-full bg-white dark:bg-gray-800 rounded-xl px-3 sm:px-5 py-3 sm:py-4 outline-none focus:ring-2 focus:ring-indigo-500 resize-none border border-gray-200 dark:border-gray-700 text-sm leading-relaxed"
+              class="flex-1 min-h-[200px] w-full bg-white dark:bg-gray-800 rounded-xl px-5 py-4 outline-none focus:ring-2 focus:ring-indigo-500 resize-none border border-gray-200 dark:border-gray-700 text-sm leading-relaxed"
             ></textarea>
             <div
               v-else
-              class="flex-1 min-h-[200px] w-full bg-white dark:bg-gray-800 rounded-xl px-3 sm:px-5 py-3 sm:py-4 border border-gray-200 dark:border-gray-700 text-sm leading-relaxed overflow-y-auto markdown-body"
+              class="flex-1 min-h-[200px] w-full bg-white dark:bg-gray-800 rounded-xl px-5 py-4 border border-gray-200 dark:border-gray-700 text-sm leading-relaxed overflow-y-auto markdown-body"
               v-html="renderMarkdown(review || '*暂无感想*')"
             ></div>
             <p class="text-[10px] text-gray-400 dark:text-gray-500 mt-1.5">支持 Markdown 语法，停止输入 500ms 后自动保存</p>
+          </div>
+
+          <div class="mt-4">
+            <TagSelector v-model="tags" />
           </div>
 
           <div class="mt-4">
@@ -574,12 +545,12 @@ onBeforeRouteLeave(async (to, from, next) => {
 
     <div v-else class="flex-1 flex items-center justify-center text-gray-400 dark:text-gray-500">加载中...</div>
 
-    <div class="flex-shrink-0 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-2 sm:p-3">
-      <div class="max-w-4xl mx-auto flex items-center justify-between gap-2">
+    <div class="flex-shrink-0 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-3">
+      <div class="max-w-4xl mx-auto flex items-center justify-between">
         <button
           :disabled="!prevEpisode"
           @click="jumpToEpisode(prevEpisode)"
-          class="px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm transition flex-shrink-0"
+          class="px-3 py-1.5 rounded-lg text-sm transition"
           :class="prevEpisode ? 'bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200' : 'bg-gray-100 text-gray-300 dark:bg-gray-800/50 dark:text-gray-600 cursor-not-allowed'"
         >
           ← 上一{{ epTerm }}
@@ -587,7 +558,7 @@ onBeforeRouteLeave(async (to, from, next) => {
 
         <button
           @click="openPicker"
-          class="text-xs sm:text-sm text-gray-500 hover:text-indigo-500 dark:text-gray-400 dark:hover:text-indigo-400 transition px-2 sm:px-3 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 truncate"
+          class="text-sm text-gray-500 hover:text-indigo-500 dark:text-gray-400 dark:hover:text-indigo-400 transition px-3 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
         >
           {{ episodeLabel }} ▾
         </button>
@@ -595,7 +566,7 @@ onBeforeRouteLeave(async (to, from, next) => {
         <button
           :disabled="!nextEpisode"
           @click="jumpToEpisode(nextEpisode)"
-          class="px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm transition flex-shrink-0"
+          class="px-3 py-1.5 rounded-lg text-sm transition"
           :class="nextEpisode ? 'bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200' : 'bg-gray-100 text-gray-300 dark:bg-gray-800/50 dark:text-gray-600 cursor-not-allowed'"
         >
           下一{{ epTerm }} →

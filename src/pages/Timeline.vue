@@ -131,11 +131,11 @@ onMounted(loadTimeline)
 </script>
 
 <template>
-  <div class="max-w-2xl mx-auto p-4 sm:p-6">
-    <header class="flex items-center justify-between mb-6 sm:mb-8">
-      <div class="flex items-center gap-2 sm:gap-3">
+  <div class="max-w-2xl mx-auto p-6">
+    <header class="flex items-center justify-between mb-8">
+      <div class="flex items-center gap-3">
         <button @click="goBack" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-sm transition">← 返回</button>
-        <h1 class="text-xl sm:text-2xl font-bold">观看时间线</h1>
+        <h1 class="text-2xl font-bold">观看时间线</h1>
       </div>
     </header>
 
@@ -146,14 +146,14 @@ onMounted(loadTimeline)
       <p class="text-sm">开始记录你的观影时光吧</p>
     </div>
 
-    <div v-else class="space-y-6 sm:space-y-8">
+    <div v-else class="space-y-8">
       <div v-for="group in timeline" :key="group.month">
-        <h2 class="text-base sm:text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2 sm:mb-3">{{ group.month }}</h2>
+        <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-3">{{ group.month }}</h2>
 
-        <div class="space-y-3 sm:space-y-4">
+        <div class="space-y-4">
           <div v-for="day in group.days" :key="day.date">
-            <h3 class="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 mb-1.5 sm:mb-2">{{ day.dateLabel }}</h3>
-            <div class="space-y-2 ml-2 sm:ml-3 border-l-2 border-gray-200 dark:border-gray-700 pl-3 sm:pl-4">
+            <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">{{ day.dateLabel }}</h3>
+            <div class="space-y-2 ml-3 border-l-2 border-gray-200 dark:border-gray-700 pl-4">
               <div
                 v-for="item in day.items"
                 :key="item.id"

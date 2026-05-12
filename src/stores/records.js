@@ -42,11 +42,9 @@ export const useRecordsStore = defineStore('records', () => {
     await db.episodes.update(episodeId, { activeRecordId: recordId })
 
     const episode = await db.episodes.get(episodeId)
-    if (episode) {
-      const showsStore = useShowsStore()
-      await showsStore.updateShowStats(episode.showId)
-      await showsStore.updateLastWatchedAt(episode.showId)
-    }
+    const showsStore = useShowsStore()
+    await showsStore.updateShowStats(episode.showId)
+    await showsStore.updateLastWatchedAt(episode.showId)
 
     scheduleBackup()
     return recordId

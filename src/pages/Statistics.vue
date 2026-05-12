@@ -150,16 +150,16 @@ function goBack() {
 </script>
 
 <template>
-  <div class="max-w-2xl mx-auto p-4 sm:p-6">
-    <button @click="goBack" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-sm mb-4 sm:mb-6 block transition">
+  <div class="max-w-2xl mx-auto p-6">
+    <button @click="goBack" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-sm mb-6 block transition">
       ← 返回首页
     </button>
 
-    <h1 class="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">数据统计</h1>
+    <h1 class="text-2xl font-bold mb-4">数据统计</h1>
 
-    <div class="flex items-center gap-2 mb-4 sm:mb-6 flex-wrap">
-      <button @click="activeTab = 'overview'" class="px-3 sm:px-4 py-1.5 text-xs sm:text-sm rounded-full transition" :class="activeTab === 'overview' ? 'bg-gray-800 text-white dark:bg-indigo-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'">总览</button>
-      <button @click="activeTab = 'detail'" class="px-3 sm:px-4 py-1.5 text-xs sm:text-sm rounded-full transition" :class="activeTab === 'detail' ? 'bg-gray-800 text-white dark:bg-indigo-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'">作品详情</button>
+    <div class="flex items-center gap-2 mb-6">
+      <button @click="activeTab = 'overview'" class="px-4 py-1.5 text-sm rounded-full transition" :class="activeTab === 'overview' ? 'bg-gray-800 text-white dark:bg-indigo-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'">总览</button>
+      <button @click="activeTab = 'detail'" class="px-4 py-1.5 text-sm rounded-full transition" :class="activeTab === 'detail' ? 'bg-gray-800 text-white dark:bg-indigo-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'">作品详情</button>
     </div>
 
     <div v-if="shows.length === 0" class="text-center text-gray-400 dark:text-gray-500 py-12">
@@ -224,13 +224,13 @@ function goBack() {
       </div>
     </div>
 
-    <div v-else-if="activeTab === 'detail'" class="space-y-4 sm:space-y-6">
-      <div class="flex flex-wrap gap-1.5 sm:gap-2">
+    <div v-else-if="activeTab === 'detail'" class="space-y-6">
+      <div class="flex flex-wrap gap-2">
         <button
           v-for="s in showsStats"
           :key="s.showId"
           @click="selectedShowId = s.showId"
-          class="px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm transition"
+          class="px-4 py-2 rounded-lg text-sm transition"
           :class="selectedShowId === s.showId ? 'bg-gray-800 text-white dark:bg-indigo-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700'"
         >
           {{ s.name }}
