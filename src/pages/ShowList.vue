@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { useShowsStore } from '../stores/shows'
 import { importFromJSON, importFromData } from '../utils/exportImport'
 import { searchShows as searchTvmaze, getShowEpisodes, buildEpisodesFromApi } from '../utils/tvmaze'
-import { searchMovies, setTmdbApiKey, hasCustomTmdbKey, findTvPoster, findMoviePosterFallback } from '../utils/tmdb'
+import { searchMovies, findTvPoster, findMoviePosterFallback } from '../utils/tmdb'
 import { searchAnime } from '../utils/anilist'
 import { searchAnime as searchAnimeJikan } from '../utils/jikan'
 
@@ -60,8 +60,6 @@ const editFinishDate = ref('')
 const seriesList = ref([])
 const seriesInput = ref('')
 
-const tmdbKeyInput = ref('')
-const showTmdbSettings = ref(false)
 const backupStatus = ref('none')
 const showRestorePrompt = ref(false)
 const pendingBackupData = ref(null)
@@ -316,25 +314,9 @@ function openForm() {
   showRegion.value = ''
   showGenres.value = []
   addAuthor.value = ''
-  showTmdbSettings.value = false
-  tmdbKeyInput.value = ''
 }
 
 function closeForm() { showForm.value = false }
-
-function saveTmdbKey() {
-  setTmdbApiKey(tmdbKeyInput.value.trim())
-  showTmdbSettings.value = false
-  props.toast?.('TMDB API Key 已保存', 'success')
-  if (searchQuery.value) debouncedSearch(searchQuery.value)
-}
-
-function clearTmdbKey() {
-  setTmdbApiKey('')
-  tmdbKeyInput.value = ''
-  showTmdbSettings.value = false
-  props.toast?.('已恢复使用默认 Key', 'success')
-}
 
 function goToShow(id) { router.push(`/show/${id}`) }
 function goToStats() { router.push('/statistics') }
@@ -786,20 +768,6 @@ const manualItemLabel = computed(() => {
 
           <div class="mb-4">
             <input v-model="searchQuery" type="text" :placeholder="selectedCategory === 'book' ? '搜索书名...' : selectedCategory === 'movie' ? '搜索电影名...' : selectedCategory === 'animation' ? '搜索动画名...' : '搜索剧名...'" class="w-full bg-gray-100 dark:bg-gray-700 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500" @input="onSearchInput" autofocus />
-          </div>
-
-          <div v-if="selectedCategory === 'movie'" class="mb-3">
-            <button @click="showTmdbSettings = !showTmdbSettings" class="text-xs text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition">
-              {{ hasCustomTmdbKey() ? 'TMDB Key (自定义)' : 'TMDB 设置' }}
-            </button>
-            <div v-if="showTmdbSettings" class="mt-2 bg-gray-50 dark:bg-gray-750 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
-              <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">已内置默认 Key，如失效可自行配置：<a href="https://www.themoviedb.org/settings/api" target="_blank" class="text-indigo-500 underline">获取 Key</a></p>
-              <div class="flex gap-2">
-                <input v-model="tmdbKeyInput" type="text" placeholder="API Key 或 Read Access Token 均可" class="flex-1 bg-white dark:bg-gray-600 rounded px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
-                <button @click="saveTmdbKey" class="px-3 py-1.5 bg-gray-800 text-white dark:bg-indigo-600 rounded text-xs">保存</button>
-                <button v-if="hasCustomTmdbKey()" @click="clearTmdbKey" class="px-3 py-1.5 bg-gray-300 text-gray-700 dark:bg-gray-600 dark:text-gray-300 rounded text-xs">恢复默认</button>
-              </div>
-            </div>
           </div>
 
           <div v-if="searching" class="text-center text-gray-400 dark:text-gray-500 py-6">

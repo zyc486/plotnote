@@ -10,7 +10,7 @@ import {
 import { collectExportData, importFromData, exportToJSON, importFromJSON } from '../utils/exportImport'
 import { useTheme } from '../utils/theme'
 import { useShowsStore } from '../stores/shows'
-
+import { setTmdbApiKey, getTmdbApiKey, hasCustomTmdbKey } from '../utils/tmdb'
 import { setOmdbApiKey, getOmdbApiKey, hasOmdbKey } from '../utils/omdb'
 import { setTasteDiveApiKey, getTasteDiveApiKey, hasTasteDiveKey } from '../utils/tasteDive'
 
@@ -27,13 +27,29 @@ const syncing = ref(false)
 const lastSyncInfo = ref('')
 const syncStatus = ref(null)
 const importInput = ref(null)
+const tmdbKeyInput = ref('')
 const omdbKeyInput = ref('')
 const tasteDiveKeyInput = ref('')
 
 onMounted(() => {
+  tmdbKeyInput.value = getTmdbApiKey()
   omdbKeyInput.value = getOmdbApiKey()
   tasteDiveKeyInput.value = getTasteDiveApiKey()
+  tokenInput.value = getToken()
+  repoInput.value = getRepo() || 'plotnote-data'
+  connected.value = isConfigured()
+  syncStatus.value = getSyncStatus()
+  lastSyncInfo.value = formatSyncTime()
+
+  if (connected.value) {
+    verifyToken()
+  }
 })
+
+function saveTmdbKey() {
+  setTmdbApiKey(tmdbKeyInput.value.trim())
+  props.toast?.(tmdbKeyInput.value.trim() ? 'TMDB API Key 已保存' : 'TMDB API Key 已清除（使用默认）', 'success')
+}
 
 function saveOmdbKey() {
   setOmdbApiKey(omdbKeyInput.value.trim())
@@ -60,18 +76,6 @@ async function handleImport(event) {
   } catch (e) { props.toast?.('导入失败: ' + e.message, 'error') }
   event.target.value = ''
 }
-
-onMounted(() => {
-  tokenInput.value = getToken()
-  repoInput.value = getRepo() || 'plotnote-data'
-  connected.value = isConfigured()
-  syncStatus.value = getSyncStatus()
-  lastSyncInfo.value = formatSyncTime()
-
-  if (connected.value) {
-    verifyToken()
-  }
-})
 
 async function verifyToken() {
   try {
@@ -160,6 +164,7 @@ async function handleDownload() {
       </button>
     </header>
 
+    <!-- 数据管理 -->
     <section class="bg-gray-100 dark:bg-gray-800 rounded-2xl p-6 mb-6">
       <h2 class="text-lg font-semibold mb-4">数据管理</h2>
       <div class="space-y-3">
@@ -181,6 +186,7 @@ async function handleDownload() {
       </div>
     </section>
 
+    <!-- 外观 -->
     <section class="bg-gray-100 dark:bg-gray-800 rounded-2xl p-6 mb-6">
       <h2 class="text-lg font-semibold mb-4">外观</h2>
       <div class="flex items-center justify-between">
@@ -200,14 +206,81 @@ async function handleDownload() {
       </div>
     </section>
 
+    <!-- 第三方数据设置 -->
     <section class="bg-gray-100 dark:bg-gray-800 rounded-2xl p-6 mb-6">
-      <h2 class="text-lg font-semibold mb-4">第三方 API 配置</h2>
-      <div class="space-y-4">
-        <div>
-          <label class="block text-sm text-gray-500 dark:text-gray-400 mb-1">
-            OMDb API Key
-            <span v-if="hasOmdbKey()" class="ml-1 text-emerald-500">✓ 已配置</span>
-          </label>
+      <h2 class="text-lg font-semibold mb-5">第三方数据设置</h2>
+
+      <!-- 电影：TMDB -->
+      <div class="mb-6">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 text-sm font-bold">影</span>
+          <div>
+            <h3 class="text-sm font-medium text-gray-900 dark:text-gray-100">电影</h3>
+            <p class="text-xs text-gray-500 dark:text-gray-400">TMDB API · 搜索电影、获取封面</p>
+          </div>
+          <span v-if="hasCustomTmdbKey()" class="ml-auto px-2 py-0.5 text-xs rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">自定义 Key</span>
+          <span v-else class="ml-auto px-2 py-0.5 text-xs rounded-full bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400">使用默认</span>
+        </div>
+        <div class="flex gap-2">
+          <input
+            v-model="tmdbKeyInput"
+            type="password"
+            placeholder="API Key 或 Read Access Token（留空使用默认）"
+            class="flex-1 bg-white dark:bg-gray-700 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+          />
+          <button @click="saveTmdbKey" class="px-3 py-2 bg-gray-800 hover:bg-gray-700 dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white rounded-lg text-sm transition">保存</button>
+        </div>
+        <p class="text-xs text-gray-400 dark:text-gray-500 mt-1.5">
+          <a href="https://www.themoviedb.org/settings/api" target="_blank" class="text-indigo-500 hover:underline">免费申请</a>
+          · 已内置默认 Key，失效时可配置自己的
+        </p>
+      </div>
+
+      <!-- 电视剧：TVMaze -->
+      <div class="mb-6">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center text-purple-600 dark:text-purple-400 text-sm font-bold">剧</span>
+          <div>
+            <h3 class="text-sm font-medium text-gray-900 dark:text-gray-100">电视剧</h3>
+            <p class="text-xs text-gray-500 dark:text-gray-400">TVMaze API · 搜索剧集、自动获取季集</p>
+          </div>
+          <span class="ml-auto px-2 py-0.5 text-xs rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">免费 · 无需配置</span>
+        </div>
+      </div>
+
+      <!-- 动画：AniList + Jikan -->
+      <div class="mb-6">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="w-8 h-8 rounded-lg bg-pink-100 dark:bg-pink-900/30 flex items-center justify-center text-pink-600 dark:text-pink-400 text-sm font-bold">番</span>
+          <div>
+            <h3 class="text-sm font-medium text-gray-900 dark:text-gray-100">动画</h3>
+            <p class="text-xs text-gray-500 dark:text-gray-400">AniList + Jikan API · 搜索动画、多语言标题</p>
+          </div>
+          <span class="ml-auto px-2 py-0.5 text-xs rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">免费 · 无需配置</span>
+        </div>
+      </div>
+
+      <!-- 图书：豆瓣 -->
+      <div class="mb-6">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-amber-600 dark:text-amber-400 text-sm font-bold">书</span>
+          <div>
+            <h3 class="text-sm font-medium text-gray-900 dark:text-gray-100">图书</h3>
+            <p class="text-xs text-gray-500 dark:text-gray-400">豆瓣图书 API · 搜索中文图书</p>
+          </div>
+          <span class="ml-auto px-2 py-0.5 text-xs rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">免费 · 无需配置</span>
+        </div>
+      </div>
+
+      <div class="border-t border-gray-200 dark:border-gray-700 pt-5">
+        <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">可选扩展</h3>
+
+        <!-- OMDb（IMDB评分） -->
+        <div class="mb-5">
+          <div class="flex items-center gap-2 mb-2">
+            <h4 class="text-sm text-gray-600 dark:text-gray-400">OMDb API Key</h4>
+            <span v-if="hasOmdbKey()" class="px-2 py-0.5 text-xs rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">✓ 已配置</span>
+          </div>
           <div class="flex gap-2">
             <input
               v-model="omdbKeyInput"
@@ -219,11 +292,13 @@ async function handleDownload() {
           </div>
           <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">获取 IMDB、烂番茄评分（免费额度 1000 次/天）</p>
         </div>
+
+        <!-- TasteDve（推荐） -->
         <div>
-          <label class="block text-sm text-gray-500 dark:text-gray-400 mb-1">
-            TasteDive API Key
-            <span v-if="hasTasteDiveKey()" class="ml-1 text-emerald-500">✓ 已配置</span>
-          </label>
+          <div class="flex items-center gap-2 mb-2">
+            <h4 class="text-sm text-gray-600 dark:text-gray-400">TasteDive API Key</h4>
+            <span v-if="hasTasteDiveKey()" class="px-2 py-0.5 text-xs rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">✓ 已配置</span>
+          </div>
           <div class="flex gap-2">
             <input
               v-model="tasteDiveKeyInput"
@@ -238,6 +313,7 @@ async function handleDownload() {
       </div>
     </section>
 
+    <!-- GitHub 云同步 -->
     <section class="bg-gray-100 dark:bg-gray-800 rounded-2xl p-6 mb-6">
       <h2 class="text-lg font-semibold mb-4">GitHub 云同步</h2>
 
@@ -312,6 +388,7 @@ async function handleDownload() {
       </div>
     </section>
 
+    <!-- 同步说明 -->
     <section class="bg-gray-100 dark:bg-gray-800 rounded-2xl p-6">
       <h2 class="text-lg font-semibold mb-3">同步说明</h2>
       <ul class="text-sm text-gray-500 dark:text-gray-400 space-y-2">
