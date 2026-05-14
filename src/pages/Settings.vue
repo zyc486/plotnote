@@ -148,7 +148,7 @@ async function handleDownload() {
 </script>
 
 <template>
-  <div class="max-w-xl mx-auto p-6">
+  <div class="max-w-xl mx-auto p-4 md:p-6">
     <header class="flex items-center justify-between mb-8">
       <h1 class="text-2xl font-bold">设置</h1>
       <button @click="router.back()" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-sm px-3 py-2 transition">

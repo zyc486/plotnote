@@ -200,7 +200,7 @@ function handleJump() {
 </script>
 
 <template>
-  <div class="max-w-2xl mx-auto p-6">
+  <div class="max-w-2xl mx-auto p-4 md:p-6">
     <button
       @click="goBack"
       class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-sm mb-6 block transition"
@@ -308,7 +308,7 @@ function handleJump() {
 
     <div v-for="season in filteredSeasonKeys" :key="season" class="mb-8">
       <h2 v-if="needsSeasonPrefix" class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-3">第 {{ season }} {{ term.seasonLabel }}</h2>
-      <div class="grid grid-cols-8 gap-1.5">
+      <div class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-1.5">
         <div
           v-for="ep in episodeGroups[season]"
           :key="ep.id"

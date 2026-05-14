@@ -581,15 +581,15 @@ const manualItemLabel = computed(() => {
 </script>
 
 <template>
-  <div class="max-w-2xl mx-auto p-6">
-    <header class="flex items-center justify-between mb-8">
-      <h1 class="text-2xl font-bold">PlotNote</h1>
-      <div class="flex items-center gap-2">
-        <button @click="goToSearch" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-sm px-3 py-2 transition">搜索</button>
-        <button @click="goToStats" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-sm px-3 py-2 transition">统计</button>
-        <router-link to="/timeline" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-sm px-3 py-2 transition">时间线</router-link>
-        <router-link to="/settings" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-sm px-3 py-2 transition">设置</router-link>
-        <button @click="openForm" class="bg-gray-800 hover:bg-gray-700 text-white dark:bg-indigo-600 dark:hover:bg-indigo-500 px-4 py-2 rounded-lg text-sm font-medium transition">+ 添加</button>
+  <div class="max-w-2xl mx-auto p-4 md:p-6">
+    <header class="flex items-center justify-between mb-6 md:mb-8">
+      <h1 class="text-xl md:text-2xl font-bold">PlotNote</h1>
+      <div class="flex items-center gap-1 md:gap-2">
+        <button @click="goToSearch" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xs md:text-sm px-2 md:px-3 py-2 transition">搜索</button>
+        <button @click="goToStats" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xs md:text-sm px-2 md:px-3 py-2 transition">统计</button>
+        <router-link to="/timeline" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xs md:text-sm px-2 md:px-3 py-2 transition">时间线</router-link>
+        <router-link to="/settings" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xs md:text-sm px-2 md:px-3 py-2 transition hidden sm:inline">设置</router-link>
+        <button @click="openForm" class="bg-gray-800 hover:bg-gray-700 text-white dark:bg-indigo-600 dark:hover:bg-indigo-500 px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition">+ 添加</button>
       </div>
     </header>
 

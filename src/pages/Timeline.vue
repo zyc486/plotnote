@@ -136,7 +136,7 @@ onMounted(loadTimeline)
 </script>
 
 <template>
-  <div class="max-w-2xl mx-auto p-6">
+  <div class="max-w-2xl mx-auto p-4 md:p-6">
     <header class="flex items-center justify-between mb-8">
       <div class="flex items-center gap-3">
         <button @click="goBack" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-sm transition">← 返回</button>

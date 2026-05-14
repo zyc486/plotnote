@@ -413,26 +413,26 @@ onBeforeRouteLeave(async (to, from, next) => {
 
 <template>
   <div class="h-screen flex flex-col">
-    <div class="flex items-center justify-between px-6 py-3 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 flex-shrink-0">
+    <div class="flex items-center justify-between px-4 md:px-6 py-3 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 flex-shrink-0">
       <button @click="goBack" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-sm transition flex items-center gap-1">
         <span>←</span>
         <span>返回</span>
       </button>
-      <div v-if="show && episode" class="flex items-center gap-2">
-        <span class="font-semibold text-sm">{{ show.name }}</span>
-        <span class="text-gray-400 dark:text-gray-500 text-sm">{{ episodeLabel }}</span>
-        <span v-if="episodeRecords.length > 1" class="text-xs text-gray-400 dark:text-gray-500">
+      <div v-if="show && episode" class="flex items-center gap-2 min-w-0">
+        <span class="font-semibold text-sm truncate">{{ show.name }}</span>
+        <span class="text-gray-400 dark:text-gray-500 text-sm whitespace-nowrap">{{ episodeLabel }}</span>
+        <span v-if="episodeRecords.length > 1" class="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap">
           (第{{ watchCount(episode.id) }}次)
         </span>
       </div>
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-3 flex-shrink-0">
           <span v-if="dirty" class="text-xs text-amber-400">未保存</span>
           <span v-else class="text-xs text-emerald-400">已保存</span>
         </div>
     </div>
 
-    <div v-if="loaded" class="flex flex-1 min-h-0">
-      <div class="w-72 flex-shrink-0 border-r border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 flex flex-col overflow-y-auto">
+    <div v-if="loaded" class="flex flex-col md:flex-row flex-1 min-h-0">
+      <div class="w-full md:w-72 flex-shrink-0 border-b md:border-b-0 md:border-r border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 flex flex-col overflow-y-auto max-h-[40vh] md:max-h-none">
         <div class="p-4 border-b border-gray-200 dark:border-gray-800">
           <label class="block text-xs text-gray-500 dark:text-gray-400 mb-2">评分</label>
           <div

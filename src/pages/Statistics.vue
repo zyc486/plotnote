@@ -150,7 +150,7 @@ function goBack() {
 </script>
 
 <template>
-  <div class="max-w-2xl mx-auto p-6">
+  <div class="max-w-2xl mx-auto p-4 md:p-6">
     <button @click="goBack" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-sm mb-6 block transition">
       ← 返回首页
     </button>
@@ -238,7 +238,7 @@ function goBack() {
       </div>
 
       <div v-if="selectedShowStats" class="space-y-4">
-        <div class="grid grid-cols-3 gap-3">
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <div class="bg-gray-100 dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700 text-center">
             <div class="text-3xl font-bold text-amber-400">
               {{ selectedShowStats.avgRating || '--' }}
