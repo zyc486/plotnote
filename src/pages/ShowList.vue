@@ -627,25 +627,25 @@ const manualItemLabel = computed(() => {
     <div v-else class="space-y-3">
       <template v-for="item in displayItems" :key="item.type === 'series' ? 'series-' + item.seriesId : 'show-' + item.show.id">
 
-        <div v-if="item.type === 'show'" @click="goToShow(item.show.id)" class="bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-750 rounded-xl p-5 cursor-pointer transition border border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600">
-          <div class="flex items-center gap-4">
+        <div v-if="item.type === 'show'" @click="goToShow(item.show.id)" class="bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-750 rounded-xl p-3 md:p-5 cursor-pointer transition border border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600">
+          <div class="flex items-start gap-3 md:items-center md:gap-4">
             <CoverImage :src="item.show.coverImage" :name="item.show.name" size="md" />
             <div class="flex-1 min-w-0">
-              <div class="flex items-center justify-between">
+              <div class="flex items-start justify-between gap-2">
                 <div class="flex-1 min-w-0">
-                  <div class="flex items-center gap-2 mb-1">
-                    <h2 class="text-lg font-medium truncate">{{ item.show.name }}</h2>
-                    <div class="relative">
+                  <div class="flex items-center gap-1.5 mb-1 flex-wrap">
+                    <h2 class="text-base md:text-lg font-medium truncate">{{ item.show.name }}</h2>
+                    <div class="relative flex-shrink-0">
                       <span
                         v-if="item.show.status"
                         @click="toggleStatusDropdown(item.show.id, $event)"
-                        class="px-2 py-0.5 text-xs rounded-full whitespace-nowrap cursor-pointer hover:opacity-80 transition"
+                        class="px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs rounded-full whitespace-nowrap cursor-pointer hover:opacity-80 transition"
                         :class="statusColor(item.show.status)"
                       >{{ statusLabel(item.show.status) }} ▾</span>
                       <span
                         v-else
                         @click="toggleStatusDropdown(item.show.id, $event)"
-                        class="px-2 py-0.5 text-xs rounded-full whitespace-nowrap cursor-pointer bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400 hover:opacity-80 transition"
+                        class="px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs rounded-full whitespace-nowrap cursor-pointer bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400 hover:opacity-80 transition"
                       >设置状态 ▾</span>
                       <div
                         v-if="statusDropdownId === item.show.id"
@@ -660,31 +660,33 @@ const manualItemLabel = computed(() => {
                         >{{ st.label }}</button>
                       </div>
                     </div>
-                    <span v-if="item.show.category" class="px-2 py-0.5 text-xs rounded-full bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400 whitespace-nowrap">{{ categoryLabel(item.show.category) }}</span>
+                    <span v-if="item.show.category" class="px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs rounded-full bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400 whitespace-nowrap hidden sm:inline">{{ categoryLabel(item.show.category) }}</span>
                   </div>
-                  <div v-if="item.show.region || parseGenres(item.show).length > 0 || (item.show.category === 'book' && item.show.author)" class="flex items-center gap-2 mb-2 flex-wrap">
+                  <div v-if="item.show.region || parseGenres(item.show).length > 0 || (item.show.category === 'book' && item.show.author)" class="hidden md:flex items-center gap-2 mb-2 flex-wrap">
                     <span v-if="item.show.category === 'book' && item.show.author" class="text-xs text-gray-500 dark:text-gray-400">作者：{{ item.show.author }}</span>
                     <span v-if="item.show.region" class="text-xs text-gray-500 dark:text-gray-400">地区：{{ item.show.region }}</span>
                     <span v-if="parseGenres(item.show).length > 0" class="text-xs text-gray-500 dark:text-gray-400">类型：{{ parseGenres(item.show).join(' / ') }}</span>
                   </div>
-                  <div class="flex items-center gap-4 text-sm">
+                  <div class="flex items-center gap-2 md:gap-4 text-xs md:text-sm">
                     <span class="text-gray-500 dark:text-gray-400">{{ showProgressLabel(item.show) }}</span>
                     <div class="flex items-center gap-1">
-                      <div class="w-24 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                      <div class="w-16 md:w-24 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                         <div class="h-full bg-indigo-500 rounded-full transition-all duration-500" :style="{ width: progressPercent(item.show) + '%' }"></div>
                       </div>
-                      <span class="text-xs text-gray-400 dark:text-gray-500">{{ progressPercent(item.show) }}%</span>
+                      <span class="text-[10px] md:text-xs text-gray-400 dark:text-gray-500">{{ progressPercent(item.show) }}%</span>
                     </div>
                   </div>
                 </div>
-                <div class="flex items-center gap-3 ml-4 flex-shrink-0">
+                <div class="flex flex-col md:flex-row items-end md:items-center gap-1 md:gap-3 ml-2 flex-shrink-0">
                   <div v-if="item.show.avgRating > 0" class="text-right">
-                    <span class="text-2xl font-bold text-amber-400">{{ item.show.avgRating }}</span>
-                    <span class="text-xs text-gray-400 dark:text-gray-500 ml-1">均分</span>
+                    <span class="text-lg md:text-2xl font-bold text-amber-400">{{ item.show.avgRating }}</span>
+                    <span class="text-[10px] md:text-xs text-gray-400 dark:text-gray-500 ml-0.5 hidden sm:inline">均分</span>
                   </div>
-                  <div v-else class="text-sm text-gray-400 dark:text-gray-500">点击开始记录</div>
-                  <button @click="openEditMeta(item.show, $event)" class="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 text-sm transition" title="编辑分类">编辑</button>
-                  <button @click="handleDelete(item.show.id, $event)" class="text-red-400 hover:text-red-300 text-sm transition">删除</button>
+                  <div v-else class="text-[10px] md:text-sm text-gray-400 dark:text-gray-500 hidden md:block">点击开始记录</div>
+                  <div class="flex gap-1 md:gap-2">
+                    <button @click="openEditMeta(item.show, $event)" class="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 text-xs md:text-sm transition" title="编辑">编辑</button>
+                    <button @click="handleDelete(item.show.id, $event)" class="text-red-400 hover:text-red-300 text-xs md:text-sm transition">删除</button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -692,51 +694,51 @@ const manualItemLabel = computed(() => {
         </div>
 
         <div v-else>
-          <div @click="toggleSeries(item.seriesId)" class="bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-750 rounded-xl p-5 cursor-pointer transition border border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600">
-            <div class="flex items-center gap-4">
+          <div @click="toggleSeries(item.seriesId)" class="bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-750 rounded-xl p-3 md:p-5 cursor-pointer transition border border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600">
+            <div class="flex items-center gap-3 md:gap-4">
               <CoverImage :src="item.coverImage" :name="item.seriesName" size="md" />
               <div class="flex-1 min-w-0">
-                <div class="flex items-center justify-between">
+                <div class="flex items-start md:items-center justify-between gap-2">
                   <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-2 mb-1">
-                      <h2 class="text-lg font-medium truncate">{{ item.seriesName }}</h2>
-                      <span class="px-2 py-0.5 text-xs rounded-full bg-indigo-100 text-indigo-600 dark:bg-indigo-600/30 dark:text-indigo-300 whitespace-nowrap">系列</span>
-                      <span v-if="item.category" class="px-2 py-0.5 text-xs rounded-full bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400 whitespace-nowrap">{{ categoryLabel(item.category) }}</span>
+                    <div class="flex items-center gap-1.5 mb-1 flex-wrap">
+                      <h2 class="text-base md:text-lg font-medium truncate">{{ item.seriesName }}</h2>
+                      <span class="px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs rounded-full bg-indigo-100 text-indigo-600 dark:bg-indigo-600/30 dark:text-indigo-300 whitespace-nowrap">系列</span>
+                      <span v-if="item.category" class="px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs rounded-full bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400 whitespace-nowrap hidden sm:inline">{{ categoryLabel(item.category) }}</span>
                     </div>
-                    <div class="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
+                    <div class="flex items-center gap-2 md:gap-4 text-xs md:text-sm text-gray-500 dark:text-gray-400">
                       <span>共 {{ item.shows.length }} 部</span>
-                      <span v-if="item.totalEpisodes">{{ item.ratedCount }} / {{ item.totalEpisodes }} 集已评</span>
+                      <span v-if="item.totalEpisodes" class="hidden sm:inline">{{ item.ratedCount }} / {{ item.totalEpisodes }} 集已评</span>
                     </div>
                   </div>
-                  <div class="flex items-center gap-3 ml-4 flex-shrink-0">
+                  <div class="flex flex-col md:flex-row items-end md:items-center gap-1 md:gap-3 ml-2 flex-shrink-0">
                     <div v-if="item.avgRating > 0" class="text-right">
-                      <span class="text-2xl font-bold text-amber-400">{{ item.avgRating }}</span>
-                      <span class="text-xs text-gray-400 dark:text-gray-500 ml-1">均分</span>
+                      <span class="text-lg md:text-2xl font-bold text-amber-400">{{ item.avgRating }}</span>
+                      <span class="text-[10px] md:text-xs text-gray-400 dark:text-gray-500 ml-0.5 hidden sm:inline">均分</span>
                     </div>
-                    <span class="text-gray-400 dark:text-gray-500 text-sm transition-transform duration-200" :class="{ 'rotate-90': expandedSeries[item.seriesId] }">▶</span>
+                    <span class="text-gray-400 dark:text-gray-500 text-xs md:text-sm transition-transform duration-200" :class="{ 'rotate-90': expandedSeries[item.seriesId] }">▶</span>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div v-if="expandedSeries[item.seriesId]" class="ml-6 mt-1 space-y-1">
-            <div v-for="show in item.shows" :key="show.id" @click="goToShow(show.id)" class="bg-gray-50 hover:bg-gray-100 dark:bg-gray-900 dark:hover:bg-gray-800 rounded-lg px-4 py-3 cursor-pointer transition border border-gray-200 dark:border-gray-800 flex items-center gap-3">
+          <div v-if="expandedSeries[item.seriesId]" class="ml-3 md:ml-6 mt-1 space-y-1">
+            <div v-for="show in item.shows" :key="show.id" @click="goToShow(show.id)" class="bg-gray-50 hover:bg-gray-100 dark:bg-gray-900 dark:hover:bg-gray-800 rounded-lg px-3 md:px-4 py-2.5 md:py-3 cursor-pointer transition border border-gray-200 dark:border-gray-800 flex items-center gap-2 md:gap-3">
               <CoverImage :src="show.coverImage" :name="show.name" size="sm" />
               <div class="flex-1 min-w-0">
-                <div class="flex items-center justify-between">
+                <div class="flex items-center justify-between gap-1">
                   <div class="flex items-center gap-1.5 min-w-0">
-                    <span class="text-sm font-medium truncate">{{ show.name }}</span>
-                    <span v-if="show.status" class="px-1.5 py-0.5 text-xs rounded-full whitespace-nowrap" :class="statusColor(show.status)">{{ statusLabel(show.status) }}</span>
+                    <span class="text-xs md:text-sm font-medium truncate">{{ show.name }}</span>
+                    <span v-if="show.status" class="px-1.5 py-0.5 text-[10px] md:text-xs rounded-full whitespace-nowrap" :class="statusColor(show.status)">{{ statusLabel(show.status) }}</span>
                   </div>
-                  <div class="flex items-center gap-2 ml-2 flex-shrink-0">
-                    <span v-if="show.avgRating > 0" class="text-sm font-bold text-amber-400">{{ show.avgRating }}</span>
-                    <span v-else class="text-xs text-gray-400 dark:text-gray-500">未评</span>
-                    <button @click="openEditMeta(show, $event)" class="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 text-xs transition">编辑</button>
-                    <button @click="handleDelete(show.id, $event)" class="text-red-400 hover:text-red-300 text-xs transition">删除</button>
+                  <div class="flex items-center gap-1.5 md:gap-2 ml-2 flex-shrink-0">
+                    <span v-if="show.avgRating > 0" class="text-xs md:text-sm font-bold text-amber-400">{{ show.avgRating }}</span>
+                    <span v-else class="text-[10px] md:text-xs text-gray-400 dark:text-gray-500">未评</span>
+                    <button @click="openEditMeta(show, $event)" class="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 text-[10px] md:text-xs transition">编辑</button>
+                    <button @click="handleDelete(show.id, $event)" class="text-red-400 hover:text-red-300 text-[10px] md:text-xs transition">删</button>
                   </div>
                 </div>
-                <div class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{{ showProgressLabel(show) }}</div>
+                <div class="text-[10px] md:text-xs text-gray-400 dark:text-gray-500 mt-0.5">{{ showProgressLabel(show) }}</div>
               </div>
             </div>
           </div>

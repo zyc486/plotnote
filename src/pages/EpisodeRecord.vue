@@ -50,6 +50,7 @@ const epTerm = computed(() => {
 
 const showPicker = ref(false)
 const pickerSeason = ref(0)
+const showSidebarMobile = ref(false)
 
 const seasonLabel = computed(() => {
   const cat = show.value?.category || 'tv'
@@ -425,14 +426,17 @@ onBeforeRouteLeave(async (to, from, next) => {
           (第{{ watchCount(episode.id) }}次)
         </span>
       </div>
-      <div class="flex items-center gap-3 flex-shrink-0">
+      <div class="flex items-center gap-2 md:gap-3 flex-shrink-0">
+          <button @click="showSidebarMobile = !showSidebarMobile" class="md:hidden text-xs px-2 py-1 rounded transition" :class="showSidebarMobile ? 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400' : 'text-gray-500 dark:text-gray-400'">
+            {{ showSidebarMobile ? '收起面板' : '评分面板' }}
+          </button>
           <span v-if="dirty" class="text-xs text-amber-400">未保存</span>
           <span v-else class="text-xs text-emerald-400">已保存</span>
         </div>
     </div>
 
     <div v-if="loaded" class="flex flex-col md:flex-row flex-1 min-h-0">
-      <div class="w-full md:w-72 flex-shrink-0 border-b md:border-b-0 md:border-r border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 flex flex-col overflow-y-auto max-h-[40vh] md:max-h-none">
+      <div class="w-full md:w-72 flex-shrink-0 border-b md:border-b-0 md:border-r border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 flex flex-col overflow-y-auto" :class="showSidebarMobile ? 'max-h-[50vh]' : 'hidden md:flex'">
         <div class="p-4 border-b border-gray-200 dark:border-gray-800">
           <label class="block text-xs text-gray-500 dark:text-gray-400 mb-2">评分</label>
           <div
@@ -544,7 +548,7 @@ onBeforeRouteLeave(async (to, from, next) => {
       </div>
 
       <div class="flex-1 flex flex-col min-w-0">
-        <div class="flex-1 flex flex-col p-6 overflow-y-auto">
+        <div class="flex-1 flex flex-col p-3 md:p-6 overflow-y-auto">
           <div class="flex-1 flex flex-col">
             <div class="flex items-center justify-between mb-3">
               <label class="block text-sm text-gray-500 dark:text-gray-400">感想</label>
@@ -557,11 +561,11 @@ onBeforeRouteLeave(async (to, from, next) => {
               v-if="!showPreview"
               v-model="review"
               placeholder="写下你的感想..."
-              class="flex-1 min-h-[200px] w-full bg-white dark:bg-gray-800 rounded-xl px-5 py-4 outline-none focus:ring-2 focus:ring-indigo-500 resize-none border border-gray-200 dark:border-gray-700 text-sm leading-relaxed"
+              class="flex-1 min-h-[150px] md:min-h-[200px] w-full bg-white dark:bg-gray-800 rounded-xl px-4 md:px-5 py-3 md:py-4 outline-none focus:ring-2 focus:ring-indigo-500 resize-none border border-gray-200 dark:border-gray-700 text-sm leading-relaxed"
             ></textarea>
             <div
               v-else
-              class="flex-1 min-h-[200px] w-full bg-white dark:bg-gray-800 rounded-xl px-5 py-4 border border-gray-200 dark:border-gray-700 text-sm leading-relaxed overflow-y-auto markdown-body"
+              class="flex-1 min-h-[150px] md:min-h-[200px] w-full bg-white dark:bg-gray-800 rounded-xl px-4 md:px-5 py-3 md:py-4 border border-gray-200 dark:border-gray-700 text-sm leading-relaxed overflow-y-auto markdown-body"
               v-html="renderMarkdown(review || '*暂无感想*')"
             ></div>
             <p class="text-[10px] text-gray-400 dark:text-gray-500 mt-1.5">支持 Markdown 语法，停止输入 500ms 后自动保存</p>
@@ -580,12 +584,12 @@ onBeforeRouteLeave(async (to, from, next) => {
 
     <div v-else class="flex-1 flex items-center justify-center text-gray-400 dark:text-gray-500">加载中...</div>
 
-    <div class="flex-shrink-0 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-3">
-      <div class="max-w-4xl mx-auto flex items-center justify-between">
+    <div class="flex-shrink-0 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-2 md:p-3">
+      <div class="max-w-4xl mx-auto flex items-center justify-between gap-2">
         <button
           :disabled="!prevEpisode"
           @click="jumpToEpisode(prevEpisode)"
-          class="px-3 py-1.5 rounded-lg text-sm transition"
+          class="px-2 md:px-3 py-1.5 rounded-lg text-xs md:text-sm transition"
           :class="prevEpisode ? 'bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200' : 'bg-gray-100 text-gray-300 dark:bg-gray-800/50 dark:text-gray-600 cursor-not-allowed'"
         >
           ← 上一{{ epTerm }}
@@ -593,7 +597,7 @@ onBeforeRouteLeave(async (to, from, next) => {
 
         <button
           @click="openPicker"
-          class="text-sm text-gray-500 hover:text-indigo-500 dark:text-gray-400 dark:hover:text-indigo-400 transition px-3 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+          class="text-xs md:text-sm text-gray-500 hover:text-indigo-500 dark:text-gray-400 dark:hover:text-indigo-400 transition px-2 md:px-3 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 truncate max-w-[40%]"
         >
           {{ episodeLabel }} ▾
         </button>
@@ -601,7 +605,7 @@ onBeforeRouteLeave(async (to, from, next) => {
         <button
           :disabled="!nextEpisode"
           @click="jumpToEpisode(nextEpisode)"
-          class="px-3 py-1.5 rounded-lg text-sm transition"
+          class="px-2 md:px-3 py-1.5 rounded-lg text-xs md:text-sm transition"
           :class="nextEpisode ? 'bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200' : 'bg-gray-100 text-gray-300 dark:bg-gray-800/50 dark:text-gray-600 cursor-not-allowed'"
         >
           下一{{ epTerm }} →
