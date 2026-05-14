@@ -9,12 +9,14 @@ import {
 } from '../utils/githubSync'
 import { collectExportData, importFromData, exportToJSON, importFromJSON } from '../utils/exportImport'
 import { useTheme } from '../utils/theme'
+import { useShowsStore } from '../stores/shows'
 
 import { setOmdbApiKey, getOmdbApiKey, hasOmdbKey } from '../utils/omdb'
 import { setTasteDiveApiKey, getTasteDiveApiKey, hasTasteDiveKey } from '../utils/tasteDive'
 
 const props = defineProps(['toast'])
 const router = useRouter()
+const store = useShowsStore()
 const { isDark, toggleTheme } = useTheme()
 
 const tokenInput = ref('')
@@ -53,6 +55,7 @@ async function handleImport(event) {
   if (!file) return
   try {
     const r = await importFromJSON(file)
+    await store.fetchShows()
     props.toast?.(`导入成功: ${r.shows}部, ${r.episodes}条, ${r.records}条记录`, 'success')
   } catch (e) { props.toast?.('导入失败: ' + e.message, 'error') }
   event.target.value = ''
@@ -136,6 +139,7 @@ async function handleDownload() {
       return
     }
     await importFromData(data, true)
+    await store.fetchShows()
     syncStatus.value = getSyncStatus()
     lastSyncInfo.value = formatSyncTime()
     props.toast?.('数据已从 GitHub 恢复', 'success')

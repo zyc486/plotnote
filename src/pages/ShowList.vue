@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useShowsStore } from '../stores/shows'
-import { importFromJSON } from '../utils/exportImport'
+import { importFromJSON, importFromData } from '../utils/exportImport'
 import { searchShows as searchTvmaze, getShowEpisodes, buildEpisodesFromApi } from '../utils/tvmaze'
 import { searchMovies, setTmdbApiKey, hasCustomTmdbKey, findTvPoster, findMoviePosterFallback } from '../utils/tmdb'
 import { searchAnime } from '../utils/anilist'
@@ -108,7 +108,7 @@ function closeStatusDropdown() {
 async function confirmRestore() {
   if (!pendingBackupData.value) return
   try {
-    await importFromJSON(pendingBackupData.value)
+    await importFromData(pendingBackupData.value, true)
     await store.fetchShows()
     seriesList.value = await store.getAllSeries()
     showRestorePrompt.value = false
@@ -389,6 +389,8 @@ const displayItems = computed(() => {
     shows.sort((a, b) => (Number(b.avgRating) || 0) - (Number(a.avgRating) || 0))
   } else if (sortBy.value === 'lastWatchedAt') {
     shows.sort((a, b) => (b.lastWatchedAt || 0) - (a.lastWatchedAt || 0))
+  } else if (sortBy.value === 'name') {
+    shows.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'zh-CN'))
   }
 
   const grouped = {}

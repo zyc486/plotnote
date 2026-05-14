@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { db, CATEGORIES } from '../db'
 import { episodeLabel as epLabel } from '../utils/terminology'
+import { debounce } from '../utils/debounce'
 
 const router = useRouter()
 
@@ -30,6 +31,8 @@ onMounted(async () => {
   const tags = await db.tags.toArray()
   allTags.value = tags.map(t => t.name)
 })
+
+const debouncedSearch = debounce(doSearch, 300)
 
 async function doSearch() {
   const q = query.value.trim().toLowerCase()
@@ -183,7 +186,7 @@ function goBack() {
           type="text"
           placeholder="搜索名称、评论、标签、地区、类型..."
           class="flex-1 bg-gray-100 dark:bg-gray-800 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500 border border-gray-200 dark:border-gray-700"
-          @input="doSearch"
+          @input="debouncedSearch"
         />
       </div>
 
@@ -209,7 +212,7 @@ function goBack() {
             max="10"
             step="0.5"
             class="w-20 bg-gray-100 dark:bg-gray-800 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 border border-gray-200 dark:border-gray-700"
-            @input="doSearch"
+            @input="debouncedSearch"
           />
         </div>
 

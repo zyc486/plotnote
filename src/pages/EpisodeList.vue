@@ -26,6 +26,10 @@ const showsStore = useShowsStore()
 const showCategory = computed(() => show.value?.category || 'tv')
 const term = computed(() => getTerminology(showCategory.value))
 
+function parseGenres(show) {
+  try { return JSON.parse(show.genres) } catch { return [] }
+}
+
 const needsSeasonPrefix = computed(() => seasonKeys.value.length > 1)
 
 const episodeGroups = computed(() => {
@@ -217,8 +221,8 @@ function handleJump() {
             <span v-if="show.category" class="px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs rounded-full bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400">{{ categoryLabel(show.category) }}</span>
             <span v-if="show.status" class="px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs rounded-full" :class="statusColor(show.status)">{{ statusLabel(show.status) }}</span>
             <span v-if="show.region" class="text-[10px] md:text-xs text-gray-500 dark:text-gray-400">{{ show.region }}</span>
-            <template v-if="show.genres && show.genres.length > 0">
-              <span v-for="g in show.genres.slice(0, 3)" :key="g" class="px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs rounded-full bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400 hidden sm:inline">{{ g }}</span>
+            <template v-if="parseGenres(show).length > 0">
+              <span v-for="g in parseGenres(show).slice(0, 3)" :key="g" class="px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs rounded-full bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400 hidden sm:inline">{{ g }}</span>
             </template>
             <button @click="goToStats" class="text-[10px] md:text-xs text-indigo-500 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 transition ml-auto">查看统计 →</button>
           </div>

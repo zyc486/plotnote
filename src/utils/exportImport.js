@@ -119,6 +119,8 @@ async function doImport(data, tables, isReplace) {
       importedShowIdMap[oldId] = newId
     }
 
+    // 保存 episode 原始 ID 映射，用于后续 activeRecordId 处理
+    const episodeOldIdMap = new Map()
     for (const episode of data.episodes) {
       const oldId = episode.id
       const newShowId = importedShowIdMap[episode.showId]
@@ -127,6 +129,7 @@ async function doImport(data, tables, isReplace) {
       episode.showId = newShowId
       const newId = await db.episodes.add(episode)
       importedEpisodeIdMap[oldId] = newId
+      episodeOldIdMap.set(episode, oldId)
     }
 
     for (const record of data.records) {
@@ -141,9 +144,12 @@ async function doImport(data, tables, isReplace) {
       }
     }
 
+    // 使用保存的原始 ID 映射 activeRecordId
     for (const ep of data.episodes) {
+      const oldId = episodeOldIdMap.get(ep)
+      if (oldId === undefined) continue
       if (ep.activeRecordId && importedRecordIdMap[ep.activeRecordId]) {
-        const newEpisodeId = importedEpisodeIdMap[ep.id]
+        const newEpisodeId = importedEpisodeIdMap[oldId]
         if (newEpisodeId !== undefined) {
           await db.episodes.update(newEpisodeId, {
             activeRecordId: importedRecordIdMap[ep.activeRecordId],

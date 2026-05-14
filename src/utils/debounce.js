@@ -5,14 +5,3 @@ export function debounce(fn, delay) {
     timer = setTimeout(() => fn.apply(this, args), delay)
   }
 }
-
-export function throttle(fn, limit) {
-  let inThrottle = false
-  return function (...args) {
-    if (!inThrottle) {
-      fn.apply(this, args)
-      inThrottle = true
-      setTimeout(() => (inThrottle = false), limit)
-    }
-  }
-}

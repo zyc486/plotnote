@@ -43,10 +43,14 @@ PlotNote 是一个基于 Vue 3 的个人剧评记录应用，支持记录电视�
 - **设置页面**：集中管理导出、导入、主题切换、GitHub 云同步配置
 
 ### 4. 统计分析
+- 全局统计总览（作品总数、集数总数、全局均分、已评集数）
 - 全剧平均分
 - 已评/总数进度
 - 最高分/最低分剧集
 - 各季平均分对比
+- 评分分布直方图
+- 月度观看趋势图
+- 分类分布（电影/电视剧/动画/图书）
 
 ### 5. 搜索功能
 - 全文搜索：名称、评论、标签、地区、类型
@@ -74,8 +78,6 @@ plotnote/
 │   │   ├── ImageManager.vue     # 图片上传和管理
 │   │   ├── TagSelector.vue      # 标签选择器
 │   │   └── Toast.vue            # 消息提示组件
-│   ├── composposables/
-│   │   └── useToast.js          # Toast 组合式函数
 │   ├── db/
 │   │   └── index.js             # Dexie 数据库定义和常量
 │   ├── pages/               # 页面组件
@@ -94,19 +96,25 @@ plotnote/
 │   │   ├── records.js           # 记录数据
 │   │   └── tags.js              # 标签数据
 │   ├── utils/               # 工具函数
-│   │   ├── anilist.js           # AniList API
+│   │   ├── anilist.js           # AniList API（动画搜索）
 │   │   ├── autoBackup.js        # 自动备份 + GitHub 云同步
-│   │   ├── debounce.js          # 防抖/节流
+│   │   ├── debounce.js          # 防抖函数
 │   │   ├── draftCache.js        # 草稿缓存
 │   │   ├── exportImport.js      # 导入导出
 │   │   ├── githubSync.js        # GitHub 云同步核心模块
 │   │   ├── googleBooks.js       # 豆瓣图书 API
 │   │   ├── imageUtils.js        # 图片压缩
+│   │   ├── jikan.js             # Jikan API（MyAnimeList 动画搜索）
 │   │   ├── markdown.js          # Markdown 渲染
+│   │   ├── omdb.js              # OMDb API（IMDB/烂番茄评分）
+│   │   ├── tasteDive.js         # TasteDive API（作品推荐）
 │   │   ├── terminology.js       # 术语映射
 │   │   ├── theme.js             # 主题切换
-│   │   ├── tmdb.js              # TMDB API
-│   │   └── tvmaze.js            # TVMaze API
+│   │   ├── tmdb.js              # TMDB API（电影搜索）
+│   │   └── tvmaze.js            # TVMaze API（电视剧搜索）
+│   ├── config.js            # API Key 配置（已加入 .gitignore）
+│   ├── config.example.js    # API Key 配置模板
+│   ├── secrets.js           # 敏感配置（已加入 .gitignore）
 │   ├── App.vue              # 根组件
 │   ├── main.js              # 应用入口
 │   └── style.css            # 全局样式
@@ -125,19 +133,20 @@ plotnote/
 
 ### 数据库设计 (db/index.js)
 
-使用 Dexie（IndexedDB 封装），版本 5，包含以下表：
+使用 Dexie（IndexedDB 封装），版本 7，包含以下表：
 
 | 表名 | 主要字段 | 说明 |
 |------|----------|------|
-| shows | id, name, avgRating, ratedCount, category, region, genres, seriesId, coverImage | 内容条目 |
+| shows | id, name, avgRating, ratedCount, category, region, seriesId, coverImage, status, lastWatchedAt, author | 内容条目 |
 | episodes | id, showId, season, episode, activeRecordId | 剧集/章节 |
-| records | id, episodeId, rating, review, images, tags, createdAt | 评分记录 |
+| records | id, episodeId, rating, review, images, tags, createdAt, watchedDate | 评分记录 |
 | tags | id, name, isPredefined, usageCount | 标签 |
 | genreHistory | id, name | 类型历史记录 |
 | series | id, name | 系列 |
 
 **关键常量**：
 - `CATEGORIES`: movie(电影), tv(电视剧), animation(动画), book(图书)
+- `SHOW_STATUSES`: want(想看), watching(在看), finished(已看完), dropped(弃了)
 - `PREDEFINED_TAGS`: 15 个预定义标签
 - `PREDEFINED_GENRES`: 29 个预定义类型
 - `REGION_SUGGESTIONS`: 15 个地区建议
@@ -151,6 +160,8 @@ plotnote/
 | `/episode/:id` | EpisodeRecord | 记录编辑 |
 | `/statistics` | Statistics | 统计页面 |
 | `/search` | Search | 搜索页面 |
+| `/timeline` | Timeline | 观看时间线 |
+| `/settings` | Settings | 设置页面（导出/导入/主题/云同步） |
 
 ### 状态管理 (stores/)
 
@@ -200,11 +211,24 @@ plotnote/
 - `searchAnime(query)`: 搜索动画（返回 `coverImage.medium` 封面）
 - 支持 romaji/native/english 标题
 
+**jikan.js**：Jikan API（MyAnimeList 动画搜索）
+- 作为 AniList 的备用搜索源
+- `searchAnime(query)`: 搜索动画
+
 **googleBooks.js**：图书搜索
 - 使用豆瓣图书 suggest API（国内直连，无需代理）
 - `searchBooks(query)`: 搜索图书（返回 `pic` 封面 URL）
 - 按页数生成章节数（页数需用户手动设置，因豆瓣 API 不返回页数信息）
 - `buildBookChapters(totalChapters, volumes)`: 按页数和卷数生成章节结构
+
+**omdb.js**：OMDb API（IMDB/烂番茄评分）
+- 免费额度 1000 次/天
+- `getRatings(imdbId)`: 获取 IMDB 和烂番茄评分
+- 需要在设置页面配置 API Key
+
+**tasteDive.js**：TasteDive API（作品推荐）
+- `getRecommendations(query)`: 获取相似作品推荐
+- 需要在设置页面配置 API Key
 
 ### 工具函数 (utils/)
 
@@ -220,9 +244,8 @@ plotnote/
 - 使用 localStorage 存储未保存的编辑内容
 - `saveDraft()`, `loadDraft()`, `clearDraft()`
 
-**debounce.js**：防抖节流
+**debounce.js**：防抖函数
 - `debounce(fn, delay)`: 防抖函数
-- `throttle(fn, limit)`: 节流函数
 
 ## 部署
 
@@ -308,6 +331,38 @@ npm run preview
 - 使用"导入"按钮恢复数据
 
 ## 更新日志
+
+### 2026-05-14 (v8)
+**Bug 修复 + 安全加固 + 代码质量优化**
+
+**严重 Bug 修复（4 项）**：
+- **自动备份恢复崩溃**：`ShowList.vue` 中 `confirmRestore` 调用 `importFromJSON` 传入普通对象导致 TypeError，改为 `importFromData(data, true)`
+- **导入数据 activeRecordId 丢失**：`exportImport.js` 中 `doImport` 第一个循环删除了 `episode.id`，第二个循环无法映射，改用 `Map` 保存原始 ID
+- **EpisodeList genres 显示乱码**：对 JSON 字符串调用 `.slice(0, 3)` 返回字符而非数组，添加 `parseGenres()` 解析函数
+- **图片/标签在无记录时静默丢失**：`debouncedSaveImages` 和 `debouncedSaveTags` 未调用 `ensureRecordExists()`，添加前置检查
+
+**安全加固（2 项）**：
+- **移除硬编码 GitHub Token**：清空 `secrets.js` 中的真实 token，改为用户在设置页配置
+- **API Key 配置隔离**：`config.js` 加入 `.gitignore`，创建 `config.example.js` 模板文件
+
+**功能修复（3 项）**：
+- **从 GitHub 恢复后首页刷新**：`Settings.vue` 导入成功后调用 `store.fetchShows()` 更新 Pinia store
+- **搜索页防抖**：`Search.vue` 添加 300ms 防抖，避免每次按键全量查询
+- **名称排序修复**：`ShowList.vue` 添加 `localeCompare` 中文排序逻辑
+
+**代码清理（5 项）**：
+- 删除未使用的 `openLibrary.js`
+- 删除 `debounce.js` 中未使用的 `throttle` 函数
+- 删除 `records.js` 中未使用的 `fetchRecords` 和 `currentRecord`
+- 删除 `tvmaze.js` 中重复的中英文映射条目（"开端"、"西部世界"）
+- `imageUtils.js` 的 `compressImage` 添加 `FileReader.onerror` 和 `img.onerror` 错误处理
+
+**文档更新**：
+- 数据库版本号更新到 v7，补充 `status`、`lastWatchedAt`、`author`、`watchedDate` 字段
+- 路由表补充 `/settings` 和 `/timeline`
+- 项目结构补充 `jikan.js`、`omdb.js`、`tasteDive.js`、`config.js`、`secrets.js` 等文件
+- 统计功能描述补充评分分布、月度趋势、分类分布等
+- 删除不存在的 `composables/useToast.js`
 
 ### 2026-05-02 (v5)
 **系列分组卡片 + UI 交互优化**

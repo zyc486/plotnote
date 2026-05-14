@@ -137,6 +137,7 @@ const debouncedSaveReview = debounce(async (val) => {
 
 const debouncedSaveImages = debounce(async (val) => {
   if (skipWatchers) return
+  await ensureRecordExists()
   if (currentRecordId.value) {
     await recordsStore.updateRecord(currentRecordId.value, { images: val })
     dirty.value = false
@@ -146,6 +147,7 @@ const debouncedSaveImages = debounce(async (val) => {
 
 const debouncedSaveTags = debounce(async (val) => {
   if (skipWatchers) return
+  await ensureRecordExists()
   if (currentRecordId.value) {
     await recordsStore.updateRecord(currentRecordId.value, { tags: val })
     dirty.value = false

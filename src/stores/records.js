@@ -5,13 +5,7 @@ import { useShowsStore } from './shows'
 import { scheduleBackup } from '../utils/autoBackup'
 
 export const useRecordsStore = defineStore('records', () => {
-  const records = ref([])
-  const currentRecord = ref(null)
   const episodeRecords = ref([])
-
-  async function fetchRecords() {
-    records.value = await db.records.toArray()
-  }
 
   async function fetchEpisodeRecords(episodeId) {
     episodeRecords.value = await db.records.where({ episodeId }).reverse().toArray()
@@ -106,10 +100,7 @@ export const useRecordsStore = defineStore('records', () => {
   }
 
   return {
-    records,
-    currentRecord,
     episodeRecords,
-    fetchRecords,
     fetchEpisodeRecords,
     getRecord,
     getActiveRecord,

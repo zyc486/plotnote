@@ -4,3 +4,4 @@ dist/
 *.local
 .vscode/settings.json
 src/secrets.js
+src/config.js
