@@ -626,128 +626,144 @@ const manualItemLabel = computed(() => {
       <p class="text-sm">该分类下暂无内容</p>
     </div>
 
-    <div v-else class="space-y-3">
+    <div v-else class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
       <template v-for="item in displayItems" :key="item.type === 'series' ? 'series-' + item.seriesId : 'show-' + item.show.id">
 
-        <div v-if="item.type === 'show'" @click="goToShow(item.show.id)" class="bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-750 rounded-xl p-3 md:p-5 cursor-pointer transition border border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600">
-          <div class="flex items-start gap-3 md:items-center md:gap-4">
-            <CoverImage :src="item.show.coverImage" :name="item.show.name" size="md" />
-            <div class="flex-1 min-w-0">
-              <div class="flex items-start justify-between gap-2">
-                <div class="flex-1 min-w-0">
-                  <div class="flex items-center gap-1.5 mb-1 flex-wrap">
-                    <h2 class="text-base md:text-lg font-medium truncate">{{ item.show.name }}</h2>
-                    <div class="relative flex-shrink-0">
-                      <span
-                        v-if="item.show.status"
-                        @click="toggleStatusDropdown(item.show.id, $event)"
-                        class="px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs rounded-full whitespace-nowrap cursor-pointer hover:opacity-80 transition"
-                        :class="statusColor(item.show.status)"
-                      >{{ statusLabel(item.show.status) }} ▾</span>
-                      <span
-                        v-else
-                        @click="toggleStatusDropdown(item.show.id, $event)"
-                        class="px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs rounded-full whitespace-nowrap cursor-pointer bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400 hover:opacity-80 transition"
-                      >设置状态 ▾</span>
-                      <div
-                        v-if="statusDropdownId === item.show.id"
-                        class="absolute left-0 top-full mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-20 min-w-[90px]"
-                      >
-                        <button
-                          v-for="st in SHOW_STATUSES"
-                          :key="st.key"
-                          @click="quickChangeStatus(item.show.id, st.key, $event)"
-                          class="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-                          :class="item.show.status === st.key ? 'text-indigo-600 dark:text-indigo-400 font-medium' : 'text-gray-700 dark:text-gray-300'"
-                        >{{ st.label }}</button>
-                      </div>
-                    </div>
-                    <span v-if="item.show.category" class="px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs rounded-full bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400 whitespace-nowrap hidden sm:inline">{{ categoryLabel(item.show.category) }}</span>
-                  </div>
-                  <div v-if="item.show.region || parseGenres(item.show).length > 0 || (item.show.category === 'book' && item.show.author)" class="hidden md:flex items-center gap-2 mb-2 flex-wrap">
-                    <span v-if="item.show.category === 'book' && item.show.author" class="text-xs text-gray-500 dark:text-gray-400">作者：{{ item.show.author }}</span>
-                    <span v-if="item.show.region" class="text-xs text-gray-500 dark:text-gray-400">地区：{{ item.show.region }}</span>
-                    <span v-if="parseGenres(item.show).length > 0" class="text-xs text-gray-500 dark:text-gray-400">类型：{{ parseGenres(item.show).join(' / ') }}</span>
-                  </div>
-                  <div class="flex items-center gap-2 md:gap-4 text-xs md:text-sm">
-                    <span class="text-gray-500 dark:text-gray-400">{{ showProgressLabel(item.show) }}</span>
-                    <div class="flex items-center gap-1">
-                      <div class="w-16 md:w-24 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                        <div class="h-full bg-indigo-500 rounded-full transition-all duration-500" :style="{ width: progressPercent(item.show) + '%' }"></div>
-                      </div>
-                      <span class="text-[10px] md:text-xs text-gray-400 dark:text-gray-500">{{ progressPercent(item.show) }}%</span>
-                    </div>
-                  </div>
-                </div>
-                <div class="flex flex-col md:flex-row items-end md:items-center gap-1 md:gap-3 ml-2 flex-shrink-0">
-                  <div v-if="item.show.avgRating > 0" class="text-right">
-                    <span class="text-lg md:text-2xl font-bold text-amber-400">{{ item.show.avgRating }}</span>
-                    <span class="text-[10px] md:text-xs text-gray-400 dark:text-gray-500 ml-0.5 hidden sm:inline">均分</span>
-                  </div>
-                  <div v-else class="text-[10px] md:text-sm text-gray-400 dark:text-gray-500 hidden md:block">点击开始记录</div>
-                  <div class="flex gap-1 md:gap-2">
-                    <button @click="openEditMeta(item.show, $event)" class="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 text-xs md:text-sm transition" title="编辑">编辑</button>
-                    <button @click="handleDelete(item.show.id, $event)" class="text-red-400 hover:text-red-300 text-xs md:text-sm transition">删除</button>
-                  </div>
-                </div>
+        <!-- 单个作品卡片 -->
+        <div v-if="item.type === 'show'" @click="goToShow(item.show.id)" class="group cursor-pointer">
+          <div class="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-800 mb-2">
+            <img
+              v-if="item.show.coverImage"
+              :src="item.show.coverImage"
+              :alt="item.show.name"
+              class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+              loading="lazy"
+              @error="$event.target.style.display = 'none'"
+            />
+            <div v-else class="w-full h-full bg-gradient-to-br from-gray-300 to-gray-400 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center p-2">
+              <span class="text-gray-500 dark:text-gray-400 font-medium text-center text-xs leading-tight line-clamp-3">{{ item.show.name }}</span>
+            </div>
+            <!-- 评分角标 -->
+            <div v-if="item.show.avgRating > 0" class="absolute top-1.5 left-1.5 bg-black/75 backdrop-blur-sm text-amber-400 text-xs font-bold px-1.5 py-0.5 rounded">
+              {{ item.show.avgRating }}
+            </div>
+            <!-- 状态角标 -->
+            <div
+              v-if="item.show.status"
+              @click.stop="toggleStatusDropdown(item.show.id, $event)"
+              class="absolute top-1.5 right-1.5 cursor-pointer"
+            >
+              <span class="inline-block w-2.5 h-2.5 rounded-full" :class="{
+                'bg-blue-500': item.show.status === 'want',
+                'bg-green-500': item.show.status === 'watching',
+                'bg-gray-400': item.show.status === 'finished',
+                'bg-red-500': item.show.status === 'dropped',
+              }"></span>
+              <div
+                v-if="statusDropdownId === item.show.id"
+                class="absolute right-0 top-full mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-20 min-w-[90px]"
+                @click.stop
+              >
+                <button
+                  v-for="st in SHOW_STATUSES"
+                  :key="st.key"
+                  @click="quickChangeStatus(item.show.id, st.key, $event)"
+                  class="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                  :class="item.show.status === st.key ? 'text-indigo-600 dark:text-indigo-400 font-medium' : 'text-gray-700 dark:text-gray-300'"
+                >{{ st.label }}</button>
+              </div>
+            </div>
+            <!-- 悬浮操作按钮 -->
+            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              <div class="flex justify-end gap-1.5">
+                <button @click.stop="openEditMeta(item.show, $event)" class="w-7 h-7 rounded-full bg-white/20 hover:bg-white/40 text-white text-xs flex items-center justify-center transition">编辑</button>
+                <button @click.stop="handleDelete(item.show.id, $event)" class="w-7 h-7 rounded-full bg-red-500/60 hover:bg-red-500/80 text-white text-xs flex items-center justify-center transition">删</button>
               </div>
             </div>
           </div>
+          <h3 class="text-xs md:text-sm font-medium text-gray-900 dark:text-gray-100 truncate leading-tight">{{ item.show.name }}</h3>
+          <p class="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">{{ showProgressLabel(item.show) }}</p>
         </div>
 
-        <div v-else>
-          <div @click="toggleSeries(item.seriesId)" class="bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-750 rounded-xl p-3 md:p-5 cursor-pointer transition border border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600">
-            <div class="flex items-center gap-3 md:gap-4">
-              <CoverImage :src="item.coverImage" :name="item.seriesName" size="md" />
-              <div class="flex-1 min-w-0">
-                <div class="flex items-start md:items-center justify-between gap-2">
-                  <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-1.5 mb-1 flex-wrap">
-                      <h2 class="text-base md:text-lg font-medium truncate">{{ item.seriesName }}</h2>
-                      <span class="px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs rounded-full bg-indigo-100 text-indigo-600 dark:bg-indigo-600/30 dark:text-indigo-300 whitespace-nowrap">系列</span>
-                      <span v-if="item.category" class="px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs rounded-full bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400 whitespace-nowrap hidden sm:inline">{{ categoryLabel(item.category) }}</span>
-                    </div>
-                    <div class="flex items-center gap-2 md:gap-4 text-xs md:text-sm text-gray-500 dark:text-gray-400">
-                      <span>共 {{ item.shows.length }} 部</span>
-                      <span v-if="item.totalEpisodes" class="hidden sm:inline">{{ item.ratedCount }} / {{ item.totalEpisodes }} 集已评</span>
-                    </div>
-                  </div>
-                  <div class="flex flex-col md:flex-row items-end md:items-center gap-1 md:gap-3 ml-2 flex-shrink-0">
-                    <div v-if="item.avgRating > 0" class="text-right">
-                      <span class="text-lg md:text-2xl font-bold text-amber-400">{{ item.avgRating }}</span>
-                      <span class="text-[10px] md:text-xs text-gray-400 dark:text-gray-500 ml-0.5 hidden sm:inline">均分</span>
-                    </div>
-                    <span class="text-gray-400 dark:text-gray-500 text-xs md:text-sm transition-transform duration-200" :class="{ 'rotate-90': expandedSeries[item.seriesId] }">▶</span>
-                  </div>
-                </div>
-              </div>
+        <!-- 系列卡片 -->
+        <div v-else @click="toggleSeries(item.seriesId)" class="group cursor-pointer">
+          <div class="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-800 mb-2">
+            <img
+              v-if="item.coverImage"
+              :src="item.coverImage"
+              :alt="item.seriesName"
+              class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+              loading="lazy"
+              @error="$event.target.style.display = 'none'"
+            />
+            <div v-else class="w-full h-full bg-gradient-to-br from-indigo-200 to-indigo-400 dark:from-indigo-800 dark:to-indigo-900 flex items-center justify-center p-2">
+              <span class="text-indigo-700 dark:text-indigo-200 font-medium text-center text-xs leading-tight line-clamp-3">{{ item.seriesName }}</span>
+            </div>
+            <!-- 系列标识 -->
+            <div class="absolute top-1.5 left-1.5 bg-indigo-600/90 backdrop-blur-sm text-white text-[10px] font-medium px-1.5 py-0.5 rounded">
+              系列 · {{ item.shows.length }}部
+            </div>
+            <!-- 评分角标 -->
+            <div v-if="item.avgRating > 0" class="absolute top-1.5 right-1.5 bg-black/75 backdrop-blur-sm text-amber-400 text-xs font-bold px-1.5 py-0.5 rounded">
+              {{ item.avgRating }}
+            </div>
+            <!-- 展开指示器 -->
+            <div class="absolute bottom-2 right-2 w-6 h-6 rounded-full bg-white/20 flex items-center justify-center transition-transform duration-200" :class="{ 'rotate-90': expandedSeries[item.seriesId] }">
+              <span class="text-white text-xs">▶</span>
             </div>
           </div>
-
-          <div v-if="expandedSeries[item.seriesId]" class="ml-3 md:ml-6 mt-1 space-y-1">
-            <div v-for="show in item.shows" :key="show.id" @click="goToShow(show.id)" class="bg-gray-50 hover:bg-gray-100 dark:bg-gray-900 dark:hover:bg-gray-800 rounded-lg px-3 md:px-4 py-2.5 md:py-3 cursor-pointer transition border border-gray-200 dark:border-gray-800 flex items-center gap-2 md:gap-3">
-              <CoverImage :src="show.coverImage" :name="show.name" size="sm" />
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center justify-between gap-1">
-                  <div class="flex items-center gap-1.5 min-w-0">
-                    <span class="text-xs md:text-sm font-medium truncate">{{ show.name }}</span>
-                    <span v-if="show.status" class="px-1.5 py-0.5 text-[10px] md:text-xs rounded-full whitespace-nowrap" :class="statusColor(show.status)">{{ statusLabel(show.status) }}</span>
-                  </div>
-                  <div class="flex items-center gap-1.5 md:gap-2 ml-2 flex-shrink-0">
-                    <span v-if="show.avgRating > 0" class="text-xs md:text-sm font-bold text-amber-400">{{ show.avgRating }}</span>
-                    <span v-else class="text-[10px] md:text-xs text-gray-400 dark:text-gray-500">未评</span>
-                    <button @click="openEditMeta(show, $event)" class="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 text-[10px] md:text-xs transition">编辑</button>
-                    <button @click="handleDelete(show.id, $event)" class="text-red-400 hover:text-red-300 text-[10px] md:text-xs transition">删</button>
-                  </div>
-                </div>
-                <div class="text-[10px] md:text-xs text-gray-400 dark:text-gray-500 mt-0.5">{{ showProgressLabel(show) }}</div>
-              </div>
-            </div>
-          </div>
+          <h3 class="text-xs md:text-sm font-medium text-gray-900 dark:text-gray-100 truncate leading-tight">{{ item.seriesName }}</h3>
+          <p class="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 mt-0.5">系列 · {{ item.shows.length }}部</p>
         </div>
 
       </template>
     </div>
+
+    <!-- 系列展开的子作品列表 -->
+    <template v-for="item in displayItems" :key="'expand-' + item.seriesId">
+      <div v-if="item.type === 'series' && expandedSeries[item.seriesId]" class="mt-3 ml-2 md:ml-4">
+        <div class="text-xs text-gray-500 dark:text-gray-400 mb-2">▾ {{ item.seriesName }} 的子作品</div>
+        <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
+          <div v-for="show in item.shows" :key="show.id" @click="goToShow(show.id)" class="group cursor-pointer">
+            <div class="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-800 mb-2">
+              <img
+                v-if="show.coverImage"
+                :src="show.coverImage"
+                :alt="show.name"
+                class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                loading="lazy"
+                @error="$event.target.style.display = 'none'"
+              />
+              <div v-else class="w-full h-full bg-gradient-to-br from-gray-300 to-gray-400 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center p-2">
+                <span class="text-gray-500 dark:text-gray-400 font-medium text-center text-xs leading-tight line-clamp-3">{{ show.name }}</span>
+              </div>
+              <div v-if="show.avgRating > 0" class="absolute top-1.5 left-1.5 bg-black/75 backdrop-blur-sm text-amber-400 text-xs font-bold px-1.5 py-0.5 rounded">
+                {{ show.avgRating }}
+              </div>
+              <div
+                v-if="show.status"
+                class="absolute top-1.5 right-1.5"
+              >
+                <span class="inline-block w-2.5 h-2.5 rounded-full" :class="{
+                  'bg-blue-500': show.status === 'want',
+                  'bg-green-500': show.status === 'watching',
+                  'bg-gray-400': show.status === 'finished',
+                  'bg-red-500': show.status === 'dropped',
+                }"></span>
+              </div>
+              <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                <div class="flex justify-end gap-1.5">
+                  <button @click.stop="openEditMeta(show, $event)" class="w-7 h-7 rounded-full bg-white/20 hover:bg-white/40 text-white text-xs flex items-center justify-center transition">编辑</button>
+                  <button @click.stop="handleDelete(show.id, $event)" class="w-7 h-7 rounded-full bg-red-500/60 hover:bg-red-500/80 text-white text-xs flex items-center justify-center transition">删</button>
+                </div>
+              </div>
+            </div>
+            <h3 class="text-xs md:text-sm font-medium text-gray-900 dark:text-gray-100 truncate leading-tight">{{ show.name }}</h3>
+            <p class="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">{{ showProgressLabel(show) }}</p>
+          </div>
+        </div>
+      </div>
+    </template>
 
     <div v-if="showForm" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50" @click.self="closeForm">
       <div class="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-lg mx-4 border border-gray-200 dark:border-gray-700 max-h-[85vh] overflow-y-auto">
