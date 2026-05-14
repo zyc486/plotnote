@@ -1,6 +1,4 @@
 import { GITHUB_TOKEN, GITHUB_REPO } from '../config'
-let SECRETS_TOKEN = ''
-try { const s = await import('../secrets.js'); SECRETS_TOKEN = s.GITHUB_TOKEN || '' } catch {}
 
 const TOKEN_KEY = 'plotnote_github_token'
 const REPO_KEY = 'plotnote_github_repo'
@@ -22,7 +20,7 @@ function simpleHash(str) {
 let syncing = false
 
 export function getToken() {
-  return localStorage.getItem(TOKEN_KEY) || SECRETS_TOKEN || GITHUB_TOKEN || ''
+  return localStorage.getItem(TOKEN_KEY) || GITHUB_TOKEN || ''
 }
 
 export function setToken(token) {
