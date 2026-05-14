@@ -1,7 +1,9 @@
+import { OMDB_API_KEY } from '../config'
+
 const BASE_URL = 'https://www.omdbapi.com/'
 
 function getApiKey() {
-  return localStorage.getItem('omdb_api_key') || ''
+  return localStorage.getItem('omdb_api_key') || OMDB_API_KEY || ''
 }
 
 export function setOmdbApiKey(key) {

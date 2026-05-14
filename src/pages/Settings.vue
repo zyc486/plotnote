@@ -135,7 +135,7 @@ async function handleDownload() {
       props.toast?.('GitHub 上没有数据', 'warning')
       return
     }
-    await importFromData(data)
+    await importFromData(data, true)
     syncStatus.value = getSyncStatus()
     lastSyncInfo.value = formatSyncTime()
     props.toast?.('数据已从 GitHub 恢复', 'success')

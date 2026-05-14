@@ -1,7 +1,9 @@
+import { TASTEDIVE_API_KEY } from '../config'
+
 const BASE_URL = 'https://tastedive.com/api/similar'
 
 function getApiKey() {
-  return localStorage.getItem('tastedive_api_key') || ''
+  return localStorage.getItem('tastedive_api_key') || TASTEDIVE_API_KEY || ''
 }
 
 export function setTasteDiveApiKey(key) {

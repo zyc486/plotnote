@@ -86,11 +86,20 @@ onMounted(async () => {
     showRestorePrompt.value = true
   }
   document.addEventListener('click', closeStatusDropdown)
+
+  window.addEventListener('plotnote-sync-down', handleSyncDown)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', closeStatusDropdown)
+  window.removeEventListener('plotnote-sync-down', handleSyncDown)
 })
+
+async function handleSyncDown() {
+  await store.fetchShows()
+  seriesList.value = await store.getAllSeries()
+  props.toast?.('已从 GitHub 同步最新数据', 'success')
+}
 
 function closeStatusDropdown() {
   statusDropdownId.value = null
@@ -234,6 +243,7 @@ function confirmAdd() {
     region: showRegion.value,
     genres: showGenres.value,
     coverImage: selectedResult.value?.image || '',
+    author: addAuthor.value.trim(),
   }).then(() => {
     closeForm()
     props.toast?.('添加成功', 'success')

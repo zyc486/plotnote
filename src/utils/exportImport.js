@@ -48,99 +48,146 @@ export async function exportToJSON() {
 export async function importFromJSON(file) {
   const text = await file.text()
   const data = JSON.parse(text)
-  return importFromData(data)
+  return importFromData(data, false)
 }
 
-export async function importFromData(data) {
+export async function importFromData(data, replaceAll = false) {
   if (!data.shows || !data.episodes || !data.records) {
     throw new Error('无效的备份数据格式')
   }
 
+  const tables = [db.shows, db.episodes, db.records, db.tags, db.genreHistory, db.series]
+
+  if (replaceAll) {
+    let backup = null
+    try {
+      backup = await collectExportData()
+      await db.transaction('rw', tables, async () => {
+        await Promise.all(tables.map(t => t.clear()))
+      })
+    } catch (e) {
+      throw new Error('清空数据库失败: ' + e.message)
+    }
+    try {
+      return await doImport(data, tables, true)
+    } catch (e) {
+      if (backup) {
+        console.warn('导入失败，尝试恢复原始数据...')
+        try {
+          await doImport(backup, tables, true)
+        } catch (restoreErr) {
+          console.error('恢复也失败了:', restoreErr)
+        }
+      }
+      throw new Error('导入失败: ' + e.message)
+    }
+  }
+
+  return doImport(data, tables, false)
+}
+
+async function doImport(data, tables, isReplace) {
   const importedSeriesIdMap = {}
-
-  if (data.series) {
-    for (const s of data.series) {
-      const oldId = s.id
-      const existing = await db.series.where('name').equals(s.name).first()
-      if (existing) {
-        importedSeriesIdMap[oldId] = existing.id
-      } else {
-        delete s.id
-        const newId = await db.series.add(s)
-        importedSeriesIdMap[oldId] = newId
-      }
-    }
-  }
-
   const importedShowIdMap = {}
-
-  for (const show of data.shows) {
-    const oldId = show.id
-    if (show.seriesId && importedSeriesIdMap[show.seriesId]) {
-      show.seriesId = importedSeriesIdMap[show.seriesId]
-    } else if (show.seriesId) {
-      delete show.seriesId
-    }
-    delete show.id
-    const newId = await db.shows.add(show)
-    importedShowIdMap[oldId] = newId
-  }
-
   const importedEpisodeIdMap = {}
+  const importedRecordIdMap = {}
 
-  for (const episode of data.episodes) {
-    const oldId = episode.id
-    const newShowId = importedShowIdMap[episode.showId]
-    if (newShowId === undefined) continue
-    delete episode.id
-    episode.showId = newShowId
-    const newId = await db.episodes.add(episode)
-    importedEpisodeIdMap[oldId] = newId
-  }
-
-  for (const record of data.records) {
-    const newEpisodeId = importedEpisodeIdMap[record.episodeId]
-    if (newEpisodeId === undefined) continue
-    delete record.id
-    record.episodeId = newEpisodeId
-    await db.records.add(record)
-  }
-
-  if (data.tags) {
-    for (const tag of data.tags) {
-      const existing = await db.tags.where('name').equals(tag.name).first()
-      if (!existing) {
-        delete tag.id
-        await db.tags.add(tag)
+  await db.transaction('rw', tables, async () => {
+    if (data.series) {
+      for (const s of data.series) {
+        const oldId = s.id
+        const existing = await db.series.where('name').equals(s.name).first()
+        if (existing) {
+          importedSeriesIdMap[oldId] = existing.id
+        } else {
+          delete s.id
+          const newId = await db.series.add(s)
+          importedSeriesIdMap[oldId] = newId
+        }
       }
     }
-  }
 
-  if (data.genreHistory) {
-    for (const genre of data.genreHistory) {
-      const existing = await db.genreHistory.where('name').equals(genre.name).first()
-      if (!existing) {
-        delete genre.id
-        await db.genreHistory.add(genre)
+    for (const show of data.shows) {
+      const oldId = show.id
+      if (show.seriesId && importedSeriesIdMap[show.seriesId]) {
+        show.seriesId = importedSeriesIdMap[show.seriesId]
+      } else if (show.seriesId) {
+        delete show.seriesId
+      }
+      delete show.id
+      const newId = await db.shows.add(show)
+      importedShowIdMap[oldId] = newId
+    }
+
+    for (const episode of data.episodes) {
+      const oldId = episode.id
+      const newShowId = importedShowIdMap[episode.showId]
+      if (newShowId === undefined) continue
+      delete episode.id
+      episode.showId = newShowId
+      const newId = await db.episodes.add(episode)
+      importedEpisodeIdMap[oldId] = newId
+    }
+
+    for (const record of data.records) {
+      const oldRecordId = record.id
+      const newEpisodeId = importedEpisodeIdMap[record.episodeId]
+      if (newEpisodeId === undefined) continue
+      delete record.id
+      record.episodeId = newEpisodeId
+      const newRecordId = await db.records.add(record)
+      if (oldRecordId !== undefined) {
+        importedRecordIdMap[oldRecordId] = newRecordId
       }
     }
-  }
 
-  for (const [oldId, newId] of Object.entries(importedShowIdMap)) {
-    const episodes = await db.episodes.where('showId').equals(newId).toArray()
-    let totalRating = 0
-    let ratedCount = 0
-    for (const ep of episodes) {
-      const records = await db.records.where('episodeId').equals(ep.id).toArray()
-      const activeRecord = records.find(r => r.id === ep.activeRecordId)
-      if (activeRecord) {
-        totalRating += activeRecord.rating
-        ratedCount++
+    for (const ep of data.episodes) {
+      if (ep.activeRecordId && importedRecordIdMap[ep.activeRecordId]) {
+        const newEpisodeId = importedEpisodeIdMap[ep.id]
+        if (newEpisodeId !== undefined) {
+          await db.episodes.update(newEpisodeId, {
+            activeRecordId: importedRecordIdMap[ep.activeRecordId],
+          })
+        }
       }
     }
-    const avgRating = ratedCount > 0 ? Math.round((totalRating / ratedCount) * 10) / 10 : 0
-    await db.shows.update(newId, { avgRating, ratedCount })
-  }
+
+    if (data.tags) {
+      for (const tag of data.tags) {
+        const existing = await db.tags.where('name').equals(tag.name).first()
+        if (!existing) {
+          delete tag.id
+          await db.tags.add(tag)
+        }
+      }
+    }
+
+    if (data.genreHistory) {
+      for (const genre of data.genreHistory) {
+        const existing = await db.genreHistory.where('name').equals(genre.name).first()
+        if (!existing) {
+          delete genre.id
+          await db.genreHistory.add(genre)
+        }
+      }
+    }
+
+    for (const newId of Object.values(importedShowIdMap)) {
+      const episodes = await db.episodes.where('showId').equals(newId).toArray()
+      let totalRating = 0
+      let ratedCount = 0
+      for (const ep of episodes) {
+        const records = await db.records.where('episodeId').equals(ep.id).toArray()
+        const activeRecord = records.find(r => r.id === ep.activeRecordId)
+        if (activeRecord) {
+          totalRating += activeRecord.rating
+          ratedCount++
+        }
+      }
+      const avgRating = ratedCount > 0 ? Math.round((totalRating / ratedCount) * 10) / 10 : 0
+      await db.shows.update(newId, { avgRating, ratedCount })
+    }
+  })
 
   return {
     shows: data.shows.length,

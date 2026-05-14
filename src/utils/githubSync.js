@@ -1,10 +1,13 @@
+import { GITHUB_TOKEN, GITHUB_REPO } from '../config'
+let SECRETS_TOKEN = ''
+try { const s = await import('../secrets.js'); SECRETS_TOKEN = s.GITHUB_TOKEN || '' } catch {}
+
 const TOKEN_KEY = 'plotnote_github_token'
 const REPO_KEY = 'plotnote_github_repo'
 const SYNC_STATUS_KEY = 'plotnote_sync_status'
 const API = 'https://api.github.com'
 
 const FILE_NAME = 'data.json'
-const REPO_NAME = 'plotnote-data'
 
 function simpleHash(str) {
   let hash = 0
@@ -19,7 +22,7 @@ function simpleHash(str) {
 let syncing = false
 
 export function getToken() {
-  return localStorage.getItem(TOKEN_KEY) || ''
+  return localStorage.getItem(TOKEN_KEY) || SECRETS_TOKEN || GITHUB_TOKEN || ''
 }
 
 export function setToken(token) {
@@ -31,7 +34,7 @@ export function setToken(token) {
 }
 
 export function getRepo() {
-  return localStorage.getItem(REPO_KEY) || ''
+  return localStorage.getItem(REPO_KEY) || GITHUB_REPO || ''
 }
 
 export function setRepo(repo) {
@@ -79,7 +82,7 @@ export async function testConnection(token) {
 }
 
 export async function ensureRepo(token) {
-  const repoName = getRepo() || REPO_NAME
+  const repoName = getRepo() || GITHUB_REPO
   setRepo(repoName)
 
   const res = await fetch(`${API}/repos/${(await testConnection(token)).login}/${repoName}`, {

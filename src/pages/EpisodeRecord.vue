@@ -270,7 +270,7 @@ async function initPage() {
   if (hasOmdbKey() && show.value) {
     loadingRatings.value = true
     const cat = show.value.category || 'tv'
-    const type = cat === 'tv' ? 'series' : cat === 'book' ? '' : 'movie'
+    const type = cat === 'book' ? '' : cat === 'movie' ? 'movie' : 'series'
     if (type) {
       externalRatings.value = await getRatingsByTitle(show.value.name, type)
     }

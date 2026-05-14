@@ -74,7 +74,12 @@ async function loadTimeline() {
       })
     }
 
-    items.sort((a, b) => b.dateStr.localeCompare(a.dateStr))
+    items.sort((a, b) => {
+      if (!a.dateStr && !b.dateStr) return 0
+      if (!a.dateStr) return 1
+      if (!b.dateStr) return -1
+      return b.dateStr.localeCompare(a.dateStr)
+    })
 
     const grouped = {}
     for (const item of items) {

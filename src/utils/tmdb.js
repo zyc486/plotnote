@@ -1,6 +1,7 @@
+import { TMDB_API_KEY } from '../config'
+
 const BASE_URL = 'https://api.tmdb.org/3'
 const IMG_BASE = 'https://image.tmdb.org/t/p/w200'
-const DEFAULT_API_KEY = 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0ZDBkYTE3ZDhmODBiMjI4MjRiZDM5NzIzZjIyMWQwZSIsIm5iZiI6MTc0NjE4MzgzMS41ODE5OTk4LCJzdWIiOiI2ODEzNGFhNzNhZjZkOTRkMzAyNmI5NTgiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.NhSVCa8dOoRBTCBMFM7PiVsHoSnb7Kfvp0MuYIlrGxI'
 
 const TMDB_GENRE_MAP = {
   28: '动作', 12: '冒险', 16: '动画', 35: '喜剧', 80: '犯罪',
@@ -25,7 +26,7 @@ function buildFetchOptions(url) {
     const sep = url.includes('?') ? '&' : '?'
     return { url: `${url}${sep}api_key=${userKey}`, headers: {} }
   }
-  return { url, headers: { 'Authorization': `Bearer ${DEFAULT_API_KEY}`, 'Content-Type': 'application/json' } }
+  return { url, headers: { 'Authorization': `Bearer ${TMDB_API_KEY}`, 'Content-Type': 'application/json' } }
 }
 
 export function hasCustomTmdbKey() {

@@ -2,7 +2,6 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { db } from '../db'
-import { useRecordsStore } from '../stores/records'
 import { useShowsStore } from '../stores/shows'
 import { getTerminology } from '../utils/terminology'
 import { CATEGORIES } from '../db'
@@ -22,7 +21,6 @@ const jumpError = ref('')
 const activeSeason = ref(null)
 const showCoverLightbox = ref(false)
 
-const recordsStore = useRecordsStore()
 const showsStore = useShowsStore()
 
 const showCategory = computed(() => show.value?.category || 'tv')
@@ -95,8 +93,6 @@ onMounted(async () => {
     if (a.season !== b.season) return a.season - b.season
     return a.episode - b.episode
   })
-
-  await recordsStore.fetchRecords()
 
   const episodeIds = episodes.value.map(e => e.id)
   const records = await db.records.where('episodeId').anyOf(episodeIds).toArray()

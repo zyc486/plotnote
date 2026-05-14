@@ -40,7 +40,7 @@ function scheduleGitHubSync() {
       const data = await collectExportData()
       const result = await smartSync(data)
       if (result && result.direction === 'download') {
-        await importFromData(result.data)
+        await importFromData(result.data, true)
         window.dispatchEvent(new CustomEvent('plotnote-sync-down', { detail: result.data }))
       }
     } catch (e) {
@@ -55,7 +55,7 @@ export async function pullFromGitHub() {
     const data = await collectExportData()
     const result = await smartSync(data)
     if (result && result.direction === 'download') {
-      await importFromData(result.data)
+      await importFromData(result.data, true)
       return result.data
     }
     return null

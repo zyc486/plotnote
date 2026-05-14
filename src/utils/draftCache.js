@@ -7,6 +7,7 @@ export function saveDraft(episodeId, data) {
       review: data.review,
       images: data.images || [],
       tags: data.tags || [],
+      watchedDate: data.watchedDate || '',
       savedAt: Date.now(),
     }))
   } catch (e) {
