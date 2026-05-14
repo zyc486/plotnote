@@ -3,7 +3,7 @@
 // 此文件已在 .gitignore 中，不会被提交
 
 // TMDB API Key（已内置默认 Key，可替换为你自己的）
-export const TMDB_API_KEY = ''
+export const TMDB_API_KEY = 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJlMjY4ZTRhYTQzMWU3YjIzM2Y4MTY3NGVkYTg3OThiZSIsIm5iZiI6MTc3ODc3NDAwMC42MDYwMDAyLCJzdWIiOiI2YTA1ZWZmMDY0NmZmMTFhOWFlMDg5NTEiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.WTgW_R2I0eweEraIJVcxvIphCEYgpo2X6eMqACDDus4'
 
 // OMDb API Key（免费申请: omdbapi.com/apikey.aspx）
 export const OMDB_API_KEY = ''
