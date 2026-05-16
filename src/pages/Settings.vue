@@ -7,7 +7,7 @@ import {
   getSyncStatus, formatSyncTime, disconnect,
   uploadData, downloadData,
 } from '../utils/githubSync'
-import { collectExportData, importFromData, exportToJSON, importFromJSON } from '../utils/exportImport'
+import { collectExportData, importFromData, exportToJSON, importFromJSON, deduplicateShows } from '../utils/exportImport'
 import { useTheme } from '../utils/theme'
 import { useShowsStore } from '../stores/shows'
 import { setTmdbApiKey, getTmdbApiKey, hasCustomTmdbKey } from '../utils/tmdb'
@@ -75,6 +75,18 @@ async function handleImport(event) {
     props.toast?.(`导入成功: ${r.shows}部, ${r.episodes}条, ${r.records}条记录`, 'success')
   } catch (e) { props.toast?.('导入失败: ' + e.message, 'error') }
   event.target.value = ''
+}
+
+async function handleDeduplicate() {
+  try {
+    const count = await deduplicateShows()
+    await store.fetchShows()
+    if (count > 0) {
+      props.toast?.(`已清理 ${count} 个重复作品`, 'success')
+    } else {
+      props.toast?.('没有发现重复数据', 'info')
+    }
+  } catch (e) { props.toast?.('清理失败: ' + e.message, 'error') }
 }
 
 async function verifyToken() {
@@ -183,6 +195,13 @@ async function handleDownload() {
           </button>
           <input ref="importInput" type="file" accept=".json" class="hidden" @change="handleImport" />
         </div>
+        <button
+          @click="handleDeduplicate"
+          class="w-full bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+        >
+          清理重复数据
+        </button>
+        <p class="text-xs text-gray-500 dark:text-gray-400">如果因多次同步导致数据重复，点击此按钮清理（保留最新版本）</p>
       </div>
     </section>
 

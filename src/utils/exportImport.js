@@ -1,5 +1,47 @@
 import { db } from '../db'
 
+/**
+ * 去重：删除重复的 show，只保留每个 name+category 组合中最新的一个
+ * 同时清理关联的 episodes 和 records
+ */
+export async function deduplicateShows() {
+  const allShows = await db.shows.toArray()
+  const grouped = {}
+
+  // 按 name+category 分组
+  for (const show of allShows) {
+    const key = `${show.name}|||${show.category || ''}`
+    if (!grouped[key]) grouped[key] = []
+    grouped[key].push(show)
+  }
+
+  let removedCount = 0
+  const tables = [db.shows, db.episodes, db.records]
+
+  await db.transaction('rw', tables, async () => {
+    for (const shows of Object.values(grouped)) {
+      if (shows.length <= 1) continue
+
+      // 按 id 降序，保留最新的（第一个），删除其余的
+      shows.sort((a, b) => b.id - a.id)
+      const [keep, ...duplicates] = shows
+
+      for (const dup of duplicates) {
+        // 删除该 show 下的 episodes 和 records
+        const episodeIds = (await db.episodes.where('showId').equals(dup.id).toArray()).map(e => e.id)
+        if (episodeIds.length) {
+          await db.records.where('episodeId').anyOf(episodeIds).delete()
+        }
+        await db.episodes.where('showId').equals(dup.id).delete()
+        await db.shows.delete(dup.id)
+        removedCount++
+      }
+    }
+  })
+
+  return removedCount
+}
+
 export async function collectExportData() {
   const shows = await db.shows.toArray()
   const episodes = await db.episodes.toArray()
@@ -114,9 +156,27 @@ async function doImport(data, tables, isReplace) {
       } else if (show.seriesId) {
         delete show.seriesId
       }
-      delete show.id
-      const newId = await db.shows.add(show)
-      importedShowIdMap[oldId] = newId
+
+      // 根据 name + category 判断是否重复，避免多次同步导致数据重复
+      const existingShow = await db.shows.where('name').equals(show.name).first()
+      if (existingShow && existingShow.category === (show.category || '')) {
+        // 已存在相同作品，更新数据而不是添加
+        importedShowIdMap[oldId] = existingShow.id
+        await db.shows.update(existingShow.id, {
+          coverImage: show.coverImage || existingShow.coverImage,
+          author: show.author || existingShow.author,
+          status: show.status || existingShow.status,
+          genres: show.genres || existingShow.genres,
+          region: show.region || existingShow.region,
+          seriesId: show.seriesId || existingShow.seriesId,
+          startDate: show.startDate || existingShow.startDate,
+          finishDate: show.finishDate || existingShow.finishDate,
+        })
+      } else {
+        delete show.id
+        const newId = await db.shows.add(show)
+        importedShowIdMap[oldId] = newId
+      }
     }
 
     // 保存 episode 原始 ID 映射，用于后续 activeRecordId 处理

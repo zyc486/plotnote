@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { useShowsStore } from '../stores/shows'
 import { importFromJSON, importFromData } from '../utils/exportImport'
 import { searchShows as searchTvmaze, getShowEpisodes, buildEpisodesFromApi } from '../utils/tvmaze'
-import { searchMovies, findTvPoster, findMoviePosterFallback } from '../utils/tmdb'
+import { searchMovies, searchTvShows, getTvShowSeasons, findTvPoster, findMoviePosterFallback } from '../utils/tmdb'
 import { searchAnime } from '../utils/anilist'
 import { searchAnime as searchAnimeJikan } from '../utils/jikan'
 
@@ -153,13 +153,36 @@ const debouncedSearch = debounce(async (query) => {
     } else if (cat === 'book') {
       searchResults.value = await searchBooks(q)
     } else {
-      const results = await searchTvmaze(q)
-      const missing = results.filter(r => !r.image)
-      if (missing.length > 0) {
-        const fbImage = await findTvPoster(q)
-        if (fbImage) missing.forEach(r => { if (!r.image) r.image = fbImage })
+      // 同时搜索 TVMaze 和 TMDB，合并结果
+      const [tvmazeResults, tmdbResults] = await Promise.allSettled([
+        searchTvmaze(q),
+        searchTvShows(q),
+      ])
+
+      const tvmaze = tvmazeResults.status === 'fulfilled' ? tvmazeResults.value : []
+      const tmdb = tmdbResults.status === 'fulfilled' ? tmdbResults.value : []
+
+      // 标记来源，合并去重
+      const merged = []
+      const seen = new Set()
+
+      for (const item of tmdb) {
+        const key = item.name?.toLowerCase()
+        if (key && !seen.has(key)) {
+          seen.add(key)
+          merged.push({ ...item, source: 'tmdb' })
+        }
       }
-      searchResults.value = results
+
+      for (const item of tvmaze) {
+        const key = item.name?.toLowerCase()
+        if (key && !seen.has(key)) {
+          seen.add(key)
+          merged.push({ ...item, source: 'tvmaze' })
+        }
+      }
+
+      searchResults.value = merged
     }
   } catch (e) {
     searchError.value = e.message || '搜索失败，请检查网络'
@@ -202,13 +225,18 @@ async function selectResult(item) {
     addName.value = item.name
     addAuthor.value = item.authors?.length ? item.authors.join(', ') : ''
   } else {
-    showRegion.value = item.language || ''
+    showRegion.value = item.region || item.language || ''
     showGenres.value = item.genres || []
     addName.value = item.cnName || item.name
     fetchingEpisodes.value = true
     try {
-      const eps = await getShowEpisodes(item.id)
-      resultEpisodes.value = buildEpisodesFromApi(eps)
+      if (item.source === 'tmdb') {
+        const eps = await getTvShowSeasons(item.id)
+        resultEpisodes.value = eps.map(ep => ({ season: ep.season, episode: ep.episode }))
+      } else {
+        const eps = await getShowEpisodes(item.id)
+        resultEpisodes.value = buildEpisodesFromApi(eps)
+      }
     } catch { resultEpisodes.value = [] }
     finally { fetchingEpisodes.value = false }
   }
@@ -267,8 +295,14 @@ async function confirmManualAdd() {
   try {
     let coverImage = ''
     if (cat === 'tv') {
-      const results = await searchTvmaze(name)
-      if (results.length > 0) coverImage = results[0].image || ''
+      // 同时尝试 TMDB 和 TVMaze 获取封面
+      const [tmdbRes, tvmazeRes] = await Promise.allSettled([
+        searchTvShows(name),
+        searchTvmaze(name),
+      ])
+      const tmdbResults = tmdbRes.status === 'fulfilled' ? tmdbRes.value : []
+      const tvmazeResults = tvmazeRes.status === 'fulfilled' ? tvmazeRes.value : []
+      coverImage = tmdbResults[0]?.image || tvmazeResults[0]?.image || ''
       if (!coverImage) coverImage = await findTvPoster(name) || ''
     } else if (cat === 'movie') {
       try {
@@ -572,7 +606,7 @@ const manualItemLabel = computed(() => {
         <button @click="goToSearch" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xs md:text-sm px-2 md:px-3 py-2 transition">搜索</button>
         <button @click="goToStats" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xs md:text-sm px-2 md:px-3 py-2 transition">统计</button>
         <router-link to="/timeline" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xs md:text-sm px-2 md:px-3 py-2 transition">时间线</router-link>
-        <router-link to="/settings" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xs md:text-sm px-2 md:px-3 py-2 transition hidden sm:inline">设置</router-link>
+        <router-link to="/settings" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xs md:text-sm px-2 md:px-3 py-2 transition">设置</router-link>
         <button @click="openForm" class="bg-gray-800 hover:bg-gray-700 text-white dark:bg-indigo-600 dark:hover:bg-indigo-500 px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition">+ 添加</button>
       </div>
     </header>

@@ -95,6 +95,68 @@ export async function findTvPoster(query) {
   }
 }
 
+export async function searchTvShows(query) {
+  const { url, headers } = buildFetchOptions(
+    `${BASE_URL}/search/tv?query=${encodeURIComponent(query)}&language=zh-CN&include_adult=false`
+  )
+  const res = await fetch(url, { headers })
+  if (!res.ok) {
+    if (res.status === 401) {
+      if (hasCustomTmdbKey()) throw new Error('API Key 无效，请检查后重试')
+      throw new Error('默认 Key 失效，请配置自己的 TMDB API Key')
+    }
+    throw new Error('TMDB API 请求失败')
+  }
+
+  const data = await res.json()
+  const items = data.results || []
+
+  return items.slice(0, 10).map(item => ({
+    id: item.id,
+    name: item.name || item.original_name || '',
+    originalName: item.original_name || '',
+    cnName: item.name !== item.original_name ? item.name : null,
+    genres: (item.genre_ids || []).map(id => TMDB_GENRE_MAP[id]).filter(Boolean),
+    rawGenreIds: item.genre_ids || [],
+    image: item.poster_path ? `${IMG_BASE}${item.poster_path}` : null,
+    language: item.original_language || '',
+    firstAirDate: item.first_air_date || '',
+    overview: item.overview || '',
+    region: LANGUAGE_REGION_MAP[item.original_language] || '',
+    source: 'tmdb',
+  }))
+}
+
+export async function getTvShowSeasons(tvId) {
+  const { url, headers } = buildFetchOptions(
+    `${BASE_URL}/tv/${tvId}?language=zh-CN`
+  )
+  const res = await fetch(url, { headers })
+  if (!res.ok) throw new Error('获取剧集信息失败')
+  const data = await res.json()
+
+  const episodes = []
+  for (const season of data.seasons || []) {
+    if (season.season_number === 0) continue // 跳过特别篇
+    const seasonUrl = buildFetchOptions(
+      `${BASE_URL}/tv/${tvId}/season/${season.season_number}?language=zh-CN`
+    )
+    const seasonRes = await fetch(seasonUrl.url, { headers: seasonUrl.headers })
+    if (!seasonRes.ok) continue
+    const seasonData = await seasonRes.json()
+    for (const ep of seasonData.episodes || []) {
+      if (ep.episode_number > 0) {
+        episodes.push({
+          season: ep.season_number,
+          episode: ep.episode_number,
+          name: ep.name || '',
+        })
+      }
+    }
+  }
+  return episodes
+}
+
 export async function findMoviePosterFallback(query) {
   try {
     const { url, headers } = buildFetchOptions(
