@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { db } from '../db'
+import { supabase } from '../utils/supabase'
 import { useShowsStore } from '../stores/shows'
 import { getTerminology } from '../utils/terminology'
 import { CATEGORIES } from '../db'
@@ -27,6 +27,7 @@ const showCategory = computed(() => show.value?.category || 'tv')
 const term = computed(() => getTerminology(showCategory.value))
 
 function parseGenres(show) {
+  if (Array.isArray(show.genres)) return show.genres
   try { return JSON.parse(show.genres) } catch { return [] }
 }
 
@@ -92,21 +93,29 @@ const filteredAvgRating = computed(() => {
 onMounted(async () => {
   const showId = Number(route.params.id)
   show.value = await showsStore.getShow(showId)
-  episodes.value = await db.episodes.where({ showId }).toArray()
-  episodes.value.sort((a, b) => {
-    if (a.season !== b.season) return a.season - b.season
-    return a.episode - b.episode
-  })
+
+  const { data: eps } = await supabase
+    .from('episodes')
+    .select('*')
+    .eq('show_id', showId)
+    .order('season')
+    .order('episode')
+  episodes.value = eps || []
 
   const episodeIds = episodes.value.map(e => e.id)
-  const records = await db.records.where('episodeId').anyOf(episodeIds).toArray()
+  if (episodeIds.length > 0) {
+    const { data: records } = await supabase
+      .from('records')
+      .select('*')
+      .in('episode_id', episodeIds)
 
-  recordsMap.value = {}
-  for (const ep of episodes.value) {
-    const epRecords = records.filter(r => r.episodeId === ep.id)
-    const activeRecord = epRecords.find(r => r.id === ep.activeRecordId)
-    if (activeRecord) {
-      recordsMap.value[ep.id] = activeRecord
+    recordsMap.value = {}
+    for (const ep of episodes.value) {
+      const epRecords = (records || []).filter(r => r.episode_id === ep.id)
+      const activeRecord = epRecords.find(r => r.id === ep.active_record_id)
+      if (activeRecord) {
+        recordsMap.value[ep.id] = activeRecord
+      }
     }
   }
 

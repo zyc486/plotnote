@@ -1,9 +1,9 @@
 <script setup>
 import { ref, watch, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
-import { db } from '../db'
 import { useRecordsStore } from '../stores/records'
 import { useEpisodesStore } from '../stores/episodes'
+import { useShowsStore } from '../stores/shows'
 import { debounce } from '../utils/debounce'
 import { saveDraft, clearDraft, loadDraft } from '../utils/draftCache'
 import { getTerminology } from '../utils/terminology'
@@ -38,6 +38,7 @@ const loadingRatings = ref(false)
 
 const recordsStore = useRecordsStore()
 const episodesStore = useEpisodesStore()
+const showsStore = useShowsStore()
 
 const episodeLabel = ref('')
 const prevEpisode = ref(null)
@@ -80,7 +81,7 @@ function parseJsonSafe(str) {
 async function forceSave() {
   if (!currentRecordId.value || !episode.value) return
   try {
-    await db.records.update(currentRecordId.value, {
+    await recordsStore.updateRecord(currentRecordId.value, {
       rating: rating.value,
       review: review.value,
       images: JSON.stringify(images.value),
@@ -230,11 +231,11 @@ async function initPage() {
     return
   }
 
-  show.value = await db.shows.get(episode.value.showId)
+  show.value = await showsStore.getShow(episode.value.show_id)
   episode.value._category = show.value?.category || 'tv'
   episodeLabel.value = episodesStore.episodeLabel(episode.value)
 
-  await episodesStore.fetchEpisodes(episode.value.showId)
+  await episodesStore.fetchEpisodes(episode.value.show_id)
   const { prev, next } = episodesStore.getAdjacentEpisodes(episodeId)
   prevEpisode.value = prev
   nextEpisode.value = next
@@ -314,7 +315,7 @@ async function switchActiveRecord(recordId) {
   await recordsStore.setActiveRecord(episode.value.id, recordId)
   currentRecordId.value = recordId
 
-  const record = await db.records.get(recordId)
+  const record = await recordsStore.getRecord(recordId)
   if (record) {
     skipWatchers = true
     rating.value = record.rating ?? 0

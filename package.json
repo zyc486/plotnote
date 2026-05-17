@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.105.4",
     "@vitejs/plugin-vue": "^6.0.6",
     "autoprefixer": "^10.5.0",
     "dexie": "^4.4.2",

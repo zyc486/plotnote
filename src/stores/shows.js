@@ -1,171 +1,267 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { db } from '../db'
-import { scheduleBackup } from '../utils/autoBackup'
+import { supabase } from '../utils/supabase'
+
+async function getUserId() {
+  const { data: { user } } = await supabase.auth.getUser()
+  return user?.id
+}
 
 export const useShowsStore = defineStore('shows', () => {
   const shows = ref([])
   const loading = ref(false)
 
+  function toCamel(row) {
+    if (!row) return row
+    return {
+      ...row,
+      avgRating: row.avg_rating,
+      ratedCount: row.rated_count,
+      totalEpisodes: row.total_episodes,
+      seriesId: row.series_id,
+      coverImage: row.cover_image,
+      lastWatchedAt: row.last_watched_at ? new Date(row.last_watched_at).getTime() : null,
+      startDate: row.start_date,
+      finishDate: row.finish_date,
+    }
+  }
+
   async function fetchShows() {
     loading.value = true
-    shows.value = await db.shows.toArray()
+    const userId = await getUserId()
+    const { data, error } = await supabase
+      .from('shows')
+      .select('*')
+      .eq('user_id', userId)
+      .order('id', { ascending: false })
+    if (!error) shows.value = (data || []).map(toCamel)
     loading.value = false
   }
 
   async function getShow(showId) {
-    return await db.shows.get(showId)
+    const { data } = await supabase
+      .from('shows')
+      .select('*')
+      .eq('id', showId)
+      .single()
+    return toCamel(data)
   }
 
   async function updateShowCover(showId, coverImage) {
-    await db.shows.update(showId, { coverImage })
+    await supabase.from('shows').update({ cover_image: coverImage }).eq('id', showId)
   }
 
   async function addShow(name, episodes, metadata = {}) {
+    const userId = await getUserId()
     const showData = {
+      user_id: userId,
       name,
-      avgRating: 0,
-      ratedCount: 0,
-      totalEpisodes: episodes.length,
+      avg_rating: 0,
+      rated_count: 0,
+      total_episodes: episodes.length,
       category: metadata.category || '',
       region: metadata.region || '',
-      genres: metadata.genres ? JSON.stringify(metadata.genres) : '[]',
-      coverImage: metadata.coverImage || '',
+      genres: JSON.stringify(metadata.genres || []),
+      cover_image: metadata.coverImage || '',
       author: metadata.author || '',
       status: metadata.status || 'want',
-      startDate: metadata.startDate || null,
-      finishDate: metadata.finishDate || null,
-      lastWatchedAt: null,
+      start_date: metadata.startDate || null,
+      finish_date: metadata.finishDate || null,
+      last_watched_at: null,
     }
-    if (metadata.seriesId) showData.seriesId = metadata.seriesId
+    if (metadata.seriesId) showData.series_id = metadata.seriesId
 
-    const showId = await db.shows.add(showData)
+    const { data: show, error } = await supabase
+      .from('shows')
+      .insert(showData)
+      .select()
+      .single()
+    if (error) throw error
 
-    const episodeRows = episodes.map(ep => ({
-      showId,
-      season: ep.season,
-      episode: ep.episode,
-      activeRecordId: null,
-    }))
-    await db.episodes.bulkAdd(episodeRows)
+    if (episodes.length > 0) {
+      const episodeRows = episodes.map(ep => ({
+        user_id: userId,
+        show_id: show.id,
+        season: ep.season,
+        episode: ep.episode,
+        active_record_id: null,
+      }))
+      await supabase.from('episodes').insert(episodeRows)
+    }
 
     if (metadata.genres?.length) {
       for (const genre of metadata.genres) {
-        const existing = await db.genreHistory.where('name').equals(genre).first()
+        const { data: existing } = await supabase
+          .from('genre_history')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('name', genre)
+          .maybeSingle()
         if (!existing) {
-          await db.genreHistory.add({ name: genre })
+          await supabase.from('genre_history').insert({ user_id: userId, name: genre })
         }
       }
     }
 
     await fetchShows()
-    scheduleBackup()
-    return showId
+    return show.id
   }
 
   async function updateShowMeta(showId, metadata) {
+    const userId = await getUserId()
     const updateData = {}
     if (metadata.name !== undefined) updateData.name = metadata.name
     if (metadata.category !== undefined) updateData.category = metadata.category
     if (metadata.region !== undefined) updateData.region = metadata.region
     if (metadata.genres !== undefined) updateData.genres = JSON.stringify(metadata.genres)
-    if (metadata.seriesId !== undefined) updateData.seriesId = metadata.seriesId || null
-    if (metadata.coverImage !== undefined) updateData.coverImage = metadata.coverImage || ''
+    if (metadata.seriesId !== undefined) updateData.series_id = metadata.seriesId || null
+    if (metadata.coverImage !== undefined) updateData.cover_image = metadata.coverImage || ''
     if (metadata.author !== undefined) updateData.author = metadata.author || ''
     if (metadata.status !== undefined) updateData.status = metadata.status
-    if (metadata.startDate !== undefined) updateData.startDate = metadata.startDate
-    if (metadata.finishDate !== undefined) updateData.finishDate = metadata.finishDate
+    if (metadata.startDate !== undefined) updateData.start_date = metadata.startDate || null
+    if (metadata.finishDate !== undefined) updateData.finish_date = metadata.finishDate || null
 
-    await db.shows.update(showId, updateData)
+    await supabase.from('shows').update(updateData).eq('id', showId)
 
     if (metadata.genres?.length) {
       for (const genre of metadata.genres) {
-        const existing = await db.genreHistory.where('name').equals(genre).first()
+        const { data: existing } = await supabase
+          .from('genre_history')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('name', genre)
+          .maybeSingle()
         if (!existing) {
-          await db.genreHistory.add({ name: genre })
+          await supabase.from('genre_history').insert({ user_id: userId, name: genre })
         }
       }
     }
 
     await fetchShows()
-    scheduleBackup()
   }
 
   async function updateShowStats(showId) {
-    const episodes = await db.episodes.where({ showId }).toArray()
-    const episodeIds = episodes.map(ep => ep.id)
+    const userId = await getUserId()
+    const { data: episodes } = await supabase
+      .from('episodes')
+      .select('id, active_record_id')
+      .eq('show_id', showId)
+      .eq('user_id', userId)
 
-    if (episodeIds.length === 0) {
-      await db.shows.update(showId, { avgRating: 0, ratedCount: 0 })
+    if (!episodes || episodes.length === 0) {
+      await supabase.from('shows').update({ avg_rating: 0, rated_count: 0 }).eq('id', showId)
       return
     }
 
-    const records = await db.records.where('episodeId').anyOf(episodeIds).toArray()
-    const activeRecords = records.filter(r => {
-      const ep = episodes.find(e => e.id === r.episodeId)
-      return ep && ep.activeRecordId === r.id
-    })
+    const episodeIds = episodes.map(ep => ep.id)
+    const activeRecordIds = episodes
+      .filter(ep => ep.active_record_id)
+      .map(ep => ep.active_record_id)
 
-    const ratedRecords = activeRecords.filter(r => r.rating !== undefined && r.rating !== null && r.rating > 0)
+    if (activeRecordIds.length === 0) {
+      await supabase.from('shows').update({ avg_rating: 0, rated_count: 0 }).eq('id', showId)
+      await fetchShows()
+      return
+    }
+
+    const { data: records } = await supabase
+      .from('records')
+      .select('id, rating')
+      .in('id', activeRecordIds)
+
+    const ratedRecords = (records || []).filter(r => r.rating !== undefined && r.rating !== null && r.rating > 0)
     const avgRating = ratedRecords.length > 0
       ? ratedRecords.reduce((sum, r) => sum + r.rating, 0) / ratedRecords.length
       : 0
 
-    await db.shows.update(showId, {
-      avgRating: Math.round(avgRating * 10) / 10,
-      ratedCount: ratedRecords.length,
-    })
+    await supabase.from('shows').update({
+      avg_rating: Math.round(avgRating * 10) / 10,
+      rated_count: ratedRecords.length,
+    }).eq('id', showId)
 
     await fetchShows()
   }
 
   async function deleteShow(showId) {
-    const episodeIds = (await db.episodes.where({ showId }).toArray()).map(e => e.id)
-    if (episodeIds.length) {
-      await db.records.where('episodeId').anyOf(episodeIds).delete()
+    const userId = await getUserId()
+    const { data: episodes } = await supabase
+      .from('episodes')
+      .select('id')
+      .eq('show_id', showId)
+      .eq('user_id', userId)
+
+    if (episodes?.length) {
+      const episodeIds = episodes.map(e => e.id)
+      await supabase.from('records').delete().in('episode_id', episodeIds).eq('user_id', userId)
     }
-    await db.episodes.where({ showId }).delete()
-    await db.shows.delete(showId)
+    await supabase.from('episodes').delete().eq('show_id', showId).eq('user_id', userId)
+    await supabase.from('shows').delete().eq('id', showId).eq('user_id', userId)
     await fetchShows()
-    scheduleBackup()
   }
 
   async function getGenreHistory() {
-    return await db.genreHistory.toArray()
+    const userId = await getUserId()
+    const { data } = await supabase
+      .from('genre_history')
+      .select('*')
+      .eq('user_id', userId)
+    return data || []
   }
 
   async function updateShowStatus(showId, status) {
     const updateData = { status }
-    if (status === 'watching' && !((await db.shows.get(showId))?.startDate)) {
-      updateData.startDate = new Date().toISOString().split('T')[0]
+    if (status === 'watching') {
+      const show = await getShow(showId)
+      if (!show?.start_date) updateData.start_date = new Date().toISOString().split('T')[0]
     }
     if (status === 'finished') {
-      const show = await db.shows.get(showId)
-      if (!show?.finishDate) updateData.finishDate = new Date().toISOString().split('T')[0]
+      const show = await getShow(showId)
+      if (!show?.finish_date) updateData.finish_date = new Date().toISOString().split('T')[0]
     }
-    await db.shows.update(showId, updateData)
+    await supabase.from('shows').update(updateData).eq('id', showId)
     await fetchShows()
-    scheduleBackup()
   }
 
   async function updateLastWatchedAt(showId) {
-    await db.shows.update(showId, { lastWatchedAt: Date.now() })
+    await supabase.from('shows').update({ last_watched_at: new Date().toISOString() }).eq('id', showId)
   }
 
   async function getAllSeries() {
-    return await db.series.toArray()
+    const userId = await getUserId()
+    const { data } = await supabase
+      .from('series')
+      .select('*')
+      .eq('user_id', userId)
+    return data || []
   }
 
   async function createSeries(name) {
-    const existing = await db.series.where('name').equals(name).first()
+    const userId = await getUserId()
+    const { data: existing } = await supabase
+      .from('series')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('name', name)
+      .maybeSingle()
     if (existing) return existing.id
-    return await db.series.add({ name })
+
+    const { data, error } = await supabase
+      .from('series')
+      .insert({ user_id: userId, name })
+      .select()
+      .single()
+    if (error) throw error
+    return data.id
   }
 
   async function getSeriesName(seriesId) {
     if (!seriesId) return ''
-    const s = await db.series.get(seriesId)
-    return s ? s.name : ''
+    const { data } = await supabase
+      .from('series')
+      .select('name')
+      .eq('id', seriesId)
+      .single()
+    return data?.name || ''
   }
 
   return {

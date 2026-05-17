@@ -1,23 +1,45 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { db } from '../db'
+import { supabase } from '../utils/supabase'
 import { useShowsStore } from './shows'
 import { episodeLabel as epLabel } from '../utils/terminology'
-import { scheduleBackup } from '../utils/autoBackup'
+
+async function getUserId() {
+  const { data: { user } } = await supabase.auth.getUser()
+  return user?.id
+}
 
 export const useEpisodesStore = defineStore('episodes', () => {
   const episodes = ref([])
 
+  function toCamel(ep) {
+    if (!ep) return ep
+    return {
+      ...ep,
+      showId: ep.show_id,
+      activeRecordId: ep.active_record_id,
+    }
+  }
+
   async function fetchEpisodes(showId) {
-    episodes.value = await db.episodes.where({ showId }).toArray()
-    episodes.value.sort((a, b) => {
-      if (a.season !== b.season) return a.season - b.season
-      return a.episode - b.episode
-    })
+    const userId = await getUserId()
+    const { data, error } = await supabase
+      .from('episodes')
+      .select('*')
+      .eq('show_id', showId)
+      .eq('user_id', userId)
+      .order('season')
+      .order('episode')
+    if (!error) episodes.value = (data || []).map(toCamel)
   }
 
   async function getEpisode(episodeId) {
-    return await db.episodes.get(episodeId)
+    const { data } = await supabase
+      .from('episodes')
+      .select('*')
+      .eq('id', episodeId)
+      .single()
+    return toCamel(data)
   }
 
   function getAdjacentEpisodes(episodeId) {
@@ -36,16 +58,21 @@ export const useEpisodesStore = defineStore('episodes', () => {
   }
 
   async function deleteEpisode(episodeId) {
-    const episode = await db.episodes.get(episodeId)
+    const userId = await getUserId()
+    const { data: episode } = await supabase
+      .from('episodes')
+      .select('id, show_id')
+      .eq('id', episodeId)
+      .eq('user_id', userId)
+      .single()
     if (!episode) return
 
-    await db.records.where({ episodeId }).delete()
-    await db.episodes.delete(episodeId)
+    await supabase.from('records').delete().eq('episode_id', episodeId).eq('user_id', userId)
+    await supabase.from('episodes').delete().eq('id', episodeId).eq('user_id', userId)
 
     const showsStore = useShowsStore()
-    await showsStore.updateShowStats(episode.showId)
-    await fetchEpisodes(episode.showId)
-    scheduleBackup()
+    await showsStore.updateShowStats(episode.show_id)
+    await fetchEpisodes(episode.show_id)
   }
 
   return { episodes, fetchEpisodes, getEpisode, getAdjacentEpisodes, episodeLabel, deleteEpisode }

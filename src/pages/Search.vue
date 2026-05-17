@@ -1,7 +1,8 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { db, CATEGORIES } from '../db'
+import { supabase } from '../utils/supabase'
+import { CATEGORIES } from '../db'
 import { episodeLabel as epLabel } from '../utils/terminology'
 import { debounce } from '../utils/debounce'
 
@@ -19,6 +20,7 @@ function episodeLabel(ep, category) {
 }
 
 function parseGenres(show) {
+  if (Array.isArray(show.genres)) return show.genres
   try { return JSON.parse(show.genres) } catch { return [] }
 }
 
@@ -28,8 +30,9 @@ function categoryLabel(key) {
 }
 
 onMounted(async () => {
-  const tags = await db.tags.toArray()
-  allTags.value = tags.map(t => t.name)
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: tags } = await supabase.from('tags').select('name').eq('user_id', user.id)
+  allTags.value = (tags || []).map(t => t.name)
 })
 
 const debouncedSearch = debounce(doSearch, 300)
@@ -45,16 +48,17 @@ async function doSearch() {
     return
   }
 
-  const shows = await db.shows.toArray()
-  const episodes = await db.episodes.toArray()
-  const records = await db.records.toArray()
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: shows } = await supabase.from('shows').select('*').eq('user_id', user.id)
+  const { data: episodes } = await supabase.from('episodes').select('*').eq('user_id', user.id)
+  const { data: records } = await supabase.from('records').select('*').eq('user_id', user.id)
 
   const matches = []
 
-  for (const show of shows) {
+  for (const show of (shows || [])) {
     if (categoryFilter && show.category !== categoryFilter) continue
 
-    const showEpisodes = episodes.filter(ep => ep.showId === show.id)
+    const showEpisodes = (episodes || []).filter(ep => ep.show_id === show.id)
     const showGenres = parseGenres(show)
 
     if (q && show.name.toLowerCase().includes(q)) {
@@ -101,8 +105,8 @@ async function doSearch() {
     }
 
     for (const ep of showEpisodes) {
-      const epRecords = records.filter(r => r.episodeId === ep.id)
-      const activeRecord = epRecords.find(r => r.id === ep.activeRecordId)
+      const epRecords = (records || []).filter(r => r.episode_id === ep.id)
+      const activeRecord = epRecords.find(r => r.id === ep.active_record_id)
       if (!activeRecord) continue
 
       const epTags = (() => { try { return JSON.parse(activeRecord.tags) } catch { return [] } })()
@@ -137,7 +141,7 @@ async function doSearch() {
         matches.push({
           type: 'episode',
           episodeId: ep.id,
-          showId: ep.showId,
+          showId: ep.show_id,
           showName: show.name,
           episode: ep,
           rating: activeRecord.rating,

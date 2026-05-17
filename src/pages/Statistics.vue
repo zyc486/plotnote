@@ -1,7 +1,8 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { db, CATEGORIES } from '../db'
+import { supabase } from '../utils/supabase'
+import { CATEGORIES } from '../db'
 import { episodeLabel as epLabel } from '../utils/terminology'
 
 const router = useRouter()
@@ -87,19 +88,23 @@ const monthlyTrend = computed(() => {
 })
 
 onMounted(async () => {
-  shows.value = await db.shows.toArray()
-  allEpisodes.value = await db.episodes.toArray()
-  allRecords.value = await db.records.toArray()
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: s } = await supabase.from('shows').select('*').eq('user_id', user.id)
+  const { data: e } = await supabase.from('episodes').select('*').eq('user_id', user.id)
+  const { data: r } = await supabase.from('records').select('*').eq('user_id', user.id)
+  shows.value = s || []
+  allEpisodes.value = e || []
+  allRecords.value = (r || []).map(rec => ({ ...rec, watchedDate: rec.watched_date }))
 
   const allStats = []
   for (const show of shows.value) {
-    const episodes = allEpisodes.value.filter(e => e.showId === show.id)
+    const episodes = allEpisodes.value.filter(e => e.show_id === show.id)
     const episodeIds = episodes.map(e => e.id)
-    const records = allRecords.value.filter(r => episodeIds.includes(r.episodeId))
+    const records = allRecords.value.filter(r => episodeIds.includes(r.episode_id))
 
     const activeRecords = records.filter(r => {
-      const ep = episodes.find(e => e.id === r.episodeId)
-      return ep && ep.activeRecordId === r.id && r.rating > 0
+      const ep = episodes.find(e => e.id === r.episode_id)
+      return ep && ep.active_record_id === r.id && r.rating > 0
     })
 
     const ratedRecords = [...activeRecords].sort((a, b) => a.rating - b.rating)
@@ -107,7 +112,7 @@ onMounted(async () => {
     const seasonGroups = {}
     for (const ep of episodes) {
       if (!seasonGroups[ep.season]) seasonGroups[ep.season] = []
-      const record = ratedRecords.find(r => r.episodeId === ep.id)
+      const record = ratedRecords.find(r => r.episode_id === ep.id)
       if (record) seasonGroups[ep.season].push({ ...ep, rating: record.rating })
     }
 
@@ -125,13 +130,13 @@ onMounted(async () => {
       category: show.category || 'tv',
       totalEpisodes: episodes.length,
       ratedCount: ratedRecords.length,
-      avgRating: show.avgRating || 0,
+      avgRating: show.avg_rating || 0,
       highest: ratedRecords.length > 0 ? {
-        episode: episodes.find(e => e.id === ratedRecords[ratedRecords.length - 1].episodeId),
+        episode: episodes.find(e => e.id === ratedRecords[ratedRecords.length - 1].episode_id),
         rating: ratedRecords[ratedRecords.length - 1].rating,
       } : null,
       lowest: ratedRecords.length > 0 ? {
-        episode: episodes.find(e => e.id === ratedRecords[0].episodeId),
+        episode: episodes.find(e => e.id === ratedRecords[0].episode_id),
         rating: ratedRecords[0].rating,
       } : null,
       seasonStats,

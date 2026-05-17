@@ -1,51 +1,100 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { db } from '../db'
+import { supabase } from '../utils/supabase'
 import { useShowsStore } from './shows'
-import { scheduleBackup } from '../utils/autoBackup'
+
+async function getUserId() {
+  const { data: { user } } = await supabase.auth.getUser()
+  return user?.id
+}
 
 export const useRecordsStore = defineStore('records', () => {
   const episodeRecords = ref([])
 
+  function toCamelRecord(r) {
+    if (!r) return r
+    return {
+      ...r,
+      episodeId: r.episode_id,
+      createdAt: r.created_at,
+      watchedDate: r.watched_date,
+      images: typeof r.images === 'string' ? JSON.parse(r.images) : (r.images || []),
+      tags: typeof r.tags === 'string' ? JSON.parse(r.tags) : (r.tags || []),
+    }
+  }
+
   async function fetchEpisodeRecords(episodeId) {
-    episodeRecords.value = await db.records.where({ episodeId }).reverse().toArray()
+    const userId = await getUserId()
+    const { data, error } = await supabase
+      .from('records')
+      .select('*')
+      .eq('episode_id', episodeId)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+    if (!error) {
+      episodeRecords.value = (data || []).map(toCamelRecord)
+    }
   }
 
   async function getRecord(recordId) {
-    return await db.records.get(recordId)
+    const { data } = await supabase
+      .from('records')
+      .select('*')
+      .eq('id', recordId)
+      .single()
+    return toCamelRecord(data)
   }
 
   async function getActiveRecord(episodeId) {
-    const episode = await db.episodes.get(episodeId)
-    if (!episode || !episode.activeRecordId) return null
-    return await db.records.get(episode.activeRecordId)
+    const { data: episode } = await supabase
+      .from('episodes')
+      .select('active_record_id')
+      .eq('id', episodeId)
+      .single()
+    if (!episode || !episode.active_record_id) return null
+    return await getRecord(episode.active_record_id)
   }
 
   async function createRecord(episodeId, rating = 0, review = '', images = [], tags = [], watchedDate = null) {
-    const now = Date.now()
-    const recordId = await db.records.add({
-      episodeId,
-      rating,
-      review,
-      images: JSON.stringify(images),
-      tags: JSON.stringify(tags),
-      createdAt: now,
-      watchedDate: watchedDate || new Date().toISOString().split('T')[0],
-    })
+    const userId = await getUserId()
+    const { data: record, error } = await supabase
+      .from('records')
+      .insert({
+        user_id: userId,
+        episode_id: episodeId,
+        rating,
+        review,
+        images: JSON.stringify(images),
+        tags: JSON.stringify(tags),
+        created_at: new Date().toISOString(),
+        watched_date: watchedDate || new Date().toISOString().split('T')[0],
+      })
+      .select()
+      .single()
+    if (error) throw error
 
-    await db.episodes.update(episodeId, { activeRecordId: recordId })
+    await supabase.from('episodes').update({ active_record_id: record.id }).eq('id', episodeId)
 
-    const episode = await db.episodes.get(episodeId)
-    const showsStore = useShowsStore()
-    await showsStore.updateShowStats(episode.showId)
-    await showsStore.updateLastWatchedAt(episode.showId)
+    const { data: episode } = await supabase
+      .from('episodes')
+      .select('show_id')
+      .eq('id', episodeId)
+      .single()
+    if (episode) {
+      const showsStore = useShowsStore()
+      await showsStore.updateShowStats(episode.show_id)
+      await showsStore.updateLastWatchedAt(episode.show_id)
+    }
 
-    scheduleBackup()
-    return recordId
+    return record.id
   }
 
   async function updateRecord(recordId, data) {
-    const record = await db.records.get(recordId)
+    const { data: record } = await supabase
+      .from('records')
+      .select('episode_id')
+      .eq('id', recordId)
+      .single()
     if (!record) return
 
     const updateData = {}
@@ -53,50 +102,73 @@ export const useRecordsStore = defineStore('records', () => {
     if (data.review !== undefined) updateData.review = data.review
     if (data.images !== undefined) updateData.images = JSON.stringify(data.images)
     if (data.tags !== undefined) updateData.tags = JSON.stringify(data.tags)
-    if (data.watchedDate !== undefined) updateData.watchedDate = data.watchedDate
+    if (data.watchedDate !== undefined) updateData.watched_date = data.watchedDate
 
-    await db.records.update(recordId, updateData)
+    await supabase.from('records').update(updateData).eq('id', recordId)
 
-    const episode = await db.episodes.get(record.episodeId)
+    const { data: episode } = await supabase
+      .from('episodes')
+      .select('show_id')
+      .eq('id', record.episode_id)
+      .single()
     if (episode) {
       const showsStore = useShowsStore()
-      await showsStore.updateShowStats(episode.showId)
-      await showsStore.updateLastWatchedAt(episode.showId)
+      await showsStore.updateShowStats(episode.show_id)
+      await showsStore.updateLastWatchedAt(episode.show_id)
     }
-    scheduleBackup()
   }
 
   async function setActiveRecord(episodeId, recordId) {
-    await db.episodes.update(episodeId, { activeRecordId: recordId })
-    const episode = await db.episodes.get(episodeId)
-    const showsStore = useShowsStore()
-    await showsStore.updateShowStats(episode.showId)
-    scheduleBackup()
+    await supabase.from('episodes').update({ active_record_id: recordId }).eq('id', episodeId)
+    const { data: episode } = await supabase
+      .from('episodes')
+      .select('show_id')
+      .eq('id', episodeId)
+      .single()
+    if (episode) {
+      const showsStore = useShowsStore()
+      await showsStore.updateShowStats(episode.show_id)
+    }
   }
 
   async function deleteRecord(recordId) {
-    const record = await db.records.get(recordId)
+    const userId = await getUserId()
+    const { data: record } = await supabase
+      .from('records')
+      .select('episode_id')
+      .eq('id', recordId)
+      .eq('user_id', userId)
+      .single()
     if (!record) return
 
-    const episode = await db.episodes.get(record.episodeId)
-    const wasActive = episode && episode.activeRecordId === recordId
+    const { data: episode } = await supabase
+      .from('episodes')
+      .select('active_record_id, show_id')
+      .eq('id', record.episode_id)
+      .single()
+    const wasActive = episode && episode.active_record_id === recordId
 
-    await db.records.delete(recordId)
+    await supabase.from('records').delete().eq('id', recordId).eq('user_id', userId)
 
     if (wasActive) {
-      const remaining = await db.records.where({ episodeId: record.episodeId }).first()
-      if (remaining) {
-        await db.episodes.update(record.episodeId, { activeRecordId: remaining.id })
-      } else {
-        await db.episodes.update(record.episodeId, { activeRecordId: null })
-      }
+      const { data: remaining } = await supabase
+        .from('records')
+        .select('id')
+        .eq('episode_id', record.episode_id)
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      await supabase.from('episodes').update({
+        active_record_id: remaining?.id || null
+      }).eq('id', record.episode_id)
     }
 
     if (episode) {
       const showsStore = useShowsStore()
-      await showsStore.updateShowStats(episode.showId)
+      await showsStore.updateShowStats(episode.show_id)
     }
-    scheduleBackup()
   }
 
   return {

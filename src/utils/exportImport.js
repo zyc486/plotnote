@@ -1,14 +1,16 @@
-import { db } from '../db'
+import { supabase } from './supabase'
 
-/**
- * 去重：删除重复的 show，只保留每个 name+category 组合中最新的一个
- * 同时清理关联的 episodes 和 records
- */
+async function getUserId() {
+  const { data: { user } } = await supabase.auth.getUser()
+  return user?.id
+}
+
 export async function deduplicateShows() {
-  const allShows = await db.shows.toArray()
-  const grouped = {}
+  const userId = await getUserId()
+  const { data: allShows } = await supabase.from('shows').select('*').eq('user_id', userId)
+  if (!allShows) return 0
 
-  // 按 name+category 分组
+  const grouped = {}
   for (const show of allShows) {
     const key = `${show.name}|||${show.category || ''}`
     if (!grouped[key]) grouped[key] = []
@@ -16,39 +18,38 @@ export async function deduplicateShows() {
   }
 
   let removedCount = 0
-  const tables = [db.shows, db.episodes, db.records]
-
-  await db.transaction('rw', tables, async () => {
-    for (const shows of Object.values(grouped)) {
-      if (shows.length <= 1) continue
-
-      // 按 id 降序，保留最新的（第一个），删除其余的
-      shows.sort((a, b) => b.id - a.id)
-      const [keep, ...duplicates] = shows
-
-      for (const dup of duplicates) {
-        // 删除该 show 下的 episodes 和 records
-        const episodeIds = (await db.episodes.where('showId').equals(dup.id).toArray()).map(e => e.id)
-        if (episodeIds.length) {
-          await db.records.where('episodeId').anyOf(episodeIds).delete()
-        }
-        await db.episodes.where('showId').equals(dup.id).delete()
-        await db.shows.delete(dup.id)
-        removedCount++
+  for (const shows of Object.values(grouped)) {
+    if (shows.length <= 1) continue
+    shows.sort((a, b) => b.id - a.id)
+    const [, ...duplicates] = shows
+    for (const dup of duplicates) {
+      const { data: episodes } = await supabase
+        .from('episodes')
+        .select('id')
+        .eq('show_id', dup.id)
+        .eq('user_id', userId)
+      if (episodes?.length) {
+        const episodeIds = episodes.map(e => e.id)
+        await supabase.from('records').delete().in('episode_id', episodeIds).eq('user_id', userId)
       }
+      await supabase.from('episodes').delete().eq('show_id', dup.id).eq('user_id', userId)
+      await supabase.from('shows').delete().eq('id', dup.id).eq('user_id', userId)
+      removedCount++
     }
-  })
-
+  }
   return removedCount
 }
 
 export async function collectExportData() {
-  const shows = await db.shows.toArray()
-  const episodes = await db.episodes.toArray()
-  const records = await db.records.toArray()
-  const tags = await db.tags.toArray()
-  const genreHistory = await db.genreHistory.toArray()
-  const series = await db.series.toArray()
+  const userId = await getUserId()
+  const [shows, episodes, records, tags, genreHistory, series] = await Promise.all([
+    supabase.from('shows').select('*').eq('user_id', userId).then(r => r.data || []),
+    supabase.from('episodes').select('*').eq('user_id', userId).then(r => r.data || []),
+    supabase.from('records').select('*').eq('user_id', userId).then(r => r.data || []),
+    supabase.from('tags').select('*').eq('user_id', userId).then(r => r.data || []),
+    supabase.from('genre_history').select('*').eq('user_id', userId).then(r => r.data || []),
+    supabase.from('series').select('*').eq('user_id', userId).then(r => r.data || []),
+  ])
 
   return {
     version: 3,
@@ -98,162 +99,160 @@ export async function importFromData(data, replaceAll = false) {
     throw new Error('无效的备份数据格式')
   }
 
-  const tables = [db.shows, db.episodes, db.records, db.tags, db.genreHistory, db.series]
+  const userId = await getUserId()
 
   if (replaceAll) {
-    let backup = null
-    try {
-      backup = await collectExportData()
-      await db.transaction('rw', tables, async () => {
-        await Promise.all(tables.map(t => t.clear()))
-      })
-    } catch (e) {
-      throw new Error('清空数据库失败: ' + e.message)
-    }
-    try {
-      return await doImport(data, tables, true)
-    } catch (e) {
-      if (backup) {
-        console.warn('导入失败，尝试恢复原始数据...')
-        try {
-          await doImport(backup, tables, true)
-        } catch (restoreErr) {
-          console.error('恢复也失败了:', restoreErr)
-        }
+    await supabase.from('records').delete().eq('user_id', userId)
+    await supabase.from('episodes').delete().eq('user_id', userId)
+    await supabase.from('shows').delete().eq('user_id', userId)
+    await supabase.from('tags').delete().eq('user_id', userId)
+    await supabase.from('genre_history').delete().eq('user_id', userId)
+    await supabase.from('series').delete().eq('user_id', userId)
+  }
+
+  const seriesIdMap = {}
+  const showIdMap = {}
+  const episodeIdMap = {}
+
+  if (data.series) {
+    for (const s of data.series) {
+      const oldId = s.id
+      const { data: existing } = await supabase
+        .from('series')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('name', s.name)
+        .maybeSingle()
+      if (existing) {
+        seriesIdMap[oldId] = existing.id
+      } else {
+        const { data: inserted } = await supabase
+          .from('series')
+          .insert({ user_id: userId, name: s.name })
+          .select()
+          .single()
+        if (inserted) seriesIdMap[oldId] = inserted.id
       }
-      throw new Error('导入失败: ' + e.message)
     }
   }
 
-  return doImport(data, tables, false)
-}
-
-async function doImport(data, tables, isReplace) {
-  const importedSeriesIdMap = {}
-  const importedShowIdMap = {}
-  const importedEpisodeIdMap = {}
-  const importedRecordIdMap = {}
-
-  await db.transaction('rw', tables, async () => {
-    if (data.series) {
-      for (const s of data.series) {
-        const oldId = s.id
-        const existing = await db.series.where('name').equals(s.name).first()
-        if (existing) {
-          importedSeriesIdMap[oldId] = existing.id
-        } else {
-          delete s.id
-          const newId = await db.series.add(s)
-          importedSeriesIdMap[oldId] = newId
-        }
-      }
+  for (const show of data.shows) {
+    const oldId = show.id
+    const insertData = {
+      user_id: userId,
+      name: show.name,
+      avg_rating: show.avg_rating || show.avgRating || 0,
+      rated_count: show.rated_count || show.ratedCount || 0,
+      total_episodes: show.total_episodes || show.totalEpisodes || 0,
+      category: show.category || '',
+      region: show.region || '',
+      genres: show.genres || '[]',
+      cover_image: show.cover_image || show.coverImage || '',
+      author: show.author || '',
+      status: show.status || 'want',
+      start_date: show.start_date || show.startDate || null,
+      finish_date: show.finish_date || show.finishDate || null,
+      last_watched_at: show.last_watched_at || null,
+    }
+    if (show.series_id || show.seriesId) {
+      const sid = show.series_id || show.seriesId
+      insertData.series_id = seriesIdMap[sid] || sid
     }
 
-    for (const show of data.shows) {
-      const oldId = show.id
-      if (show.seriesId && importedSeriesIdMap[show.seriesId]) {
-        show.seriesId = importedSeriesIdMap[show.seriesId]
-      } else if (show.seriesId) {
-        delete show.seriesId
-      }
+    const { data: inserted } = await supabase
+      .from('shows')
+      .insert(insertData)
+      .select()
+      .single()
+    if (inserted) showIdMap[oldId] = inserted.id
+  }
 
-      // 根据 name + category 判断是否重复，避免多次同步导致数据重复
-      const existingShow = await db.shows.where('name').equals(show.name).first()
-      if (existingShow && existingShow.category === (show.category || '')) {
-        // 已存在相同作品，更新数据而不是添加
-        importedShowIdMap[oldId] = existingShow.id
-        await db.shows.update(existingShow.id, {
-          coverImage: show.coverImage || existingShow.coverImage,
-          author: show.author || existingShow.author,
-          status: show.status || existingShow.status,
-          genres: show.genres || existingShow.genres,
-          region: show.region || existingShow.region,
-          seriesId: show.seriesId || existingShow.seriesId,
-          startDate: show.startDate || existingShow.startDate,
-          finishDate: show.finishDate || existingShow.finishDate,
+  for (const ep of data.episodes) {
+    const oldId = ep.id
+    const newShowId = showIdMap[ep.show_id || ep.showId]
+    if (newShowId === undefined) continue
+
+    const { data: inserted } = await supabase
+      .from('episodes')
+      .insert({
+        user_id: userId,
+        show_id: newShowId,
+        season: ep.season,
+        episode: ep.episode,
+        active_record_id: null,
+      })
+      .select()
+      .single()
+    if (inserted) episodeIdMap[oldId] = inserted.id
+  }
+
+  const recordIdMap = {}
+  for (const rec of data.records) {
+    const oldId = rec.id
+    const newEpisodeId = episodeIdMap[rec.episode_id || rec.episodeId]
+    if (newEpisodeId === undefined) continue
+
+    const { data: inserted } = await supabase
+      .from('records')
+      .insert({
+        user_id: userId,
+        episode_id: newEpisodeId,
+        rating: rec.rating || 0,
+        review: rec.review || '',
+        images: rec.images || '[]',
+        tags: rec.tags || '[]',
+        created_at: rec.created_at || rec.createdAt || new Date().toISOString(),
+        watched_date: rec.watched_date || rec.watchedDate || null,
+      })
+      .select()
+      .single()
+    if (inserted && oldId !== undefined) recordIdMap[oldId] = inserted.id
+  }
+
+  // Update active_record_id for episodes
+  for (const ep of data.episodes) {
+    const oldEpId = ep.id
+    const oldActiveRecordId = ep.active_record_id || ep.activeRecordId
+    if (!oldActiveRecordId) continue
+    const newEpId = episodeIdMap[oldEpId]
+    const newRecordId = recordIdMap[oldActiveRecordId]
+    if (newEpId && newRecordId) {
+      await supabase.from('episodes').update({ active_record_id: newRecordId }).eq('id', newEpId)
+    }
+  }
+
+  if (data.tags) {
+    for (const tag of data.tags) {
+      const { data: existing } = await supabase
+        .from('tags')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('name', tag.name)
+        .maybeSingle()
+      if (!existing) {
+        await supabase.from('tags').insert({
+          user_id: userId,
+          name: tag.name,
+          is_predefined: tag.is_predefined || tag.isPredefined || false,
+          usage_count: tag.usage_count || tag.usageCount || 0,
         })
-      } else {
-        delete show.id
-        const newId = await db.shows.add(show)
-        importedShowIdMap[oldId] = newId
       }
     }
+  }
 
-    // 保存 episode 原始 ID 映射，用于后续 activeRecordId 处理
-    const episodeOldIdMap = new Map()
-    for (const episode of data.episodes) {
-      const oldId = episode.id
-      const newShowId = importedShowIdMap[episode.showId]
-      if (newShowId === undefined) continue
-      delete episode.id
-      episode.showId = newShowId
-      const newId = await db.episodes.add(episode)
-      importedEpisodeIdMap[oldId] = newId
-      episodeOldIdMap.set(episode, oldId)
-    }
-
-    for (const record of data.records) {
-      const oldRecordId = record.id
-      const newEpisodeId = importedEpisodeIdMap[record.episodeId]
-      if (newEpisodeId === undefined) continue
-      delete record.id
-      record.episodeId = newEpisodeId
-      const newRecordId = await db.records.add(record)
-      if (oldRecordId !== undefined) {
-        importedRecordIdMap[oldRecordId] = newRecordId
+  if (data.genreHistory) {
+    for (const genre of data.genreHistory) {
+      const { data: existing } = await supabase
+        .from('genre_history')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('name', genre.name)
+        .maybeSingle()
+      if (!existing) {
+        await supabase.from('genre_history').insert({ user_id: userId, name: genre.name })
       }
     }
-
-    // 使用保存的原始 ID 映射 activeRecordId
-    for (const ep of data.episodes) {
-      const oldId = episodeOldIdMap.get(ep)
-      if (oldId === undefined) continue
-      if (ep.activeRecordId && importedRecordIdMap[ep.activeRecordId]) {
-        const newEpisodeId = importedEpisodeIdMap[oldId]
-        if (newEpisodeId !== undefined) {
-          await db.episodes.update(newEpisodeId, {
-            activeRecordId: importedRecordIdMap[ep.activeRecordId],
-          })
-        }
-      }
-    }
-
-    if (data.tags) {
-      for (const tag of data.tags) {
-        const existing = await db.tags.where('name').equals(tag.name).first()
-        if (!existing) {
-          delete tag.id
-          await db.tags.add(tag)
-        }
-      }
-    }
-
-    if (data.genreHistory) {
-      for (const genre of data.genreHistory) {
-        const existing = await db.genreHistory.where('name').equals(genre.name).first()
-        if (!existing) {
-          delete genre.id
-          await db.genreHistory.add(genre)
-        }
-      }
-    }
-
-    for (const newId of Object.values(importedShowIdMap)) {
-      const episodes = await db.episodes.where('showId').equals(newId).toArray()
-      let totalRating = 0
-      let ratedCount = 0
-      for (const ep of episodes) {
-        const records = await db.records.where('episodeId').equals(ep.id).toArray()
-        const activeRecord = records.find(r => r.id === ep.activeRecordId)
-        if (activeRecord) {
-          totalRating += activeRecord.rating
-          ratedCount++
-        }
-      }
-      const avgRating = ratedCount > 0 ? Math.round((totalRating / ratedCount) * 10) / 10 : 0
-      await db.shows.update(newId, { avgRating, ratedCount })
-    }
-  })
+  }
 
   return {
     shows: data.shows.length,

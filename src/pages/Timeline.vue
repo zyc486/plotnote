@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { db } from '../db'
+import { supabase } from '../utils/supabase'
 import { CATEGORIES } from '../db'
 import { episodeLabel as epLabel } from '../utils/terminology'
 
@@ -43,24 +43,25 @@ function getEpisodeLabel(ep, category) {
 async function loadTimeline() {
   loading.value = true
   try {
-    const records = await db.records.toArray()
-    const episodes = await db.episodes.toArray()
-    const shows = await db.shows.toArray()
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data: records } = await supabase.from('records').select('*').eq('user_id', user.id)
+    const { data: episodes } = await supabase.from('episodes').select('*').eq('user_id', user.id)
+    const { data: shows } = await supabase.from('shows').select('*').eq('user_id', user.id)
 
     const showMap = {}
-    for (const s of shows) showMap[s.id] = s
+    for (const s of (shows || [])) showMap[s.id] = s
 
     const episodeMap = {}
-    for (const ep of episodes) episodeMap[ep.id] = ep
+    for (const ep of (episodes || [])) episodeMap[ep.id] = ep
 
     const items = []
-    for (const record of records) {
-      const episode = episodeMap[record.episodeId]
+    for (const record of (records || [])) {
+      const episode = episodeMap[record.episode_id]
       if (!episode) continue
-      const show = showMap[episode.showId]
+      const show = showMap[episode.show_id]
       if (!show) continue
 
-      const dateStr = record.watchedDate || new Date(record.createdAt).toISOString().split('T')[0]
+      const dateStr = record.watched_date || new Date(record.created_at).toISOString().split('T')[0]
       items.push({
         id: record.id,
         dateStr,

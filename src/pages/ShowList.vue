@@ -2,7 +2,6 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useShowsStore } from '../stores/shows'
-import { importFromJSON, importFromData } from '../utils/exportImport'
 import { searchShows as searchTvmaze, getShowEpisodes, buildEpisodesFromApi } from '../utils/tvmaze'
 import { searchMovies, searchTvShows, getTvShowSeasons, findTvPoster, findMoviePosterFallback } from '../utils/tmdb'
 import { searchAnime } from '../utils/anilist'
@@ -12,7 +11,6 @@ import { searchBooks } from '../utils/googleBooks'
 import { getTerminology, progressLabel } from '../utils/terminology'
 import { CATEGORIES, SHOW_STATUSES } from '../db'
 import { debounce } from '../utils/debounce'
-import { getBackupStatus, checkAndRestore, formatBackupTime, pullFromGitHub } from '../utils/autoBackup'
 import GenreSelector from '../components/GenreSelector.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import CoverImage from '../components/CoverImage.vue'
@@ -60,66 +58,21 @@ const editFinishDate = ref('')
 const seriesList = ref([])
 const seriesInput = ref('')
 
-const backupStatus = ref('none')
-const showRestorePrompt = ref(false)
-const pendingBackupData = ref(null)
 const fetchingCovers = ref(false)
 const confirmDialog = ref({ visible: false, title: '', message: '', onConfirm: null })
 
 onMounted(async () => {
   await store.fetchShows()
   seriesList.value = await store.getAllSeries()
-  backupStatus.value = getBackupStatus()
-
-  const remoteData = await pullFromGitHub()
-  if (remoteData) {
-    await store.fetchShows()
-    seriesList.value = await store.getAllSeries()
-    props.toast?.('已从 GitHub 同步最新数据', 'success')
-  }
-
-  const backup = await checkAndRestore()
-  if (backup) {
-    pendingBackupData.value = backup
-    showRestorePrompt.value = true
-  }
   document.addEventListener('click', closeStatusDropdown)
-
-  window.addEventListener('plotnote-sync-down', handleSyncDown)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', closeStatusDropdown)
-  window.removeEventListener('plotnote-sync-down', handleSyncDown)
 })
-
-async function handleSyncDown() {
-  await store.fetchShows()
-  seriesList.value = await store.getAllSeries()
-  props.toast?.('已从 GitHub 同步最新数据', 'success')
-}
 
 function closeStatusDropdown() {
   statusDropdownId.value = null
-}
-
-async function confirmRestore() {
-  if (!pendingBackupData.value) return
-  try {
-    await importFromData(pendingBackupData.value, true)
-    await store.fetchShows()
-    seriesList.value = await store.getAllSeries()
-    showRestorePrompt.value = false
-    pendingBackupData.value = null
-    props.toast?.('数据已从自动备份恢复', 'success')
-  } catch (e) {
-    props.toast?.('恢复失败: ' + e.message, 'error')
-  }
-}
-
-function dismissRestore() {
-  showRestorePrompt.value = false
-  pendingBackupData.value = null
 }
 
 const seriesMap = computed(() => {
@@ -371,6 +324,7 @@ async function handleDelete(id, e) {
 }
 
 function parseGenres(show) {
+  if (Array.isArray(show.genres)) return show.genres
   try { return JSON.parse(show.genres) } catch { return [] }
 }
 
@@ -549,7 +503,7 @@ function openEditMeta(show, e) {
   editRegion.value = show.region || ''
   editGenres.value = parseGenres(show)
   editSeriesId.value = show.seriesId || null
-  editCoverImage.value = show.coverImage || ''
+  editCoverImage.value = show.cover_image || ''
   editAuthor.value = show.author || ''
   editStatus.value = show.status || ''
   editStartDate.value = show.startDate || ''
@@ -743,8 +697,8 @@ const manualItemLabel = computed(() => {
           <div v-for="show in item.shows" :key="show.id" @click="goToShow(show.id)" class="group cursor-pointer">
             <div class="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-800 mb-2">
               <img
-                v-if="show.coverImage"
-                :src="show.coverImage"
+                v-if="show.cover_image"
+                :src="show.cover_image"
                 :alt="show.name"
                 class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                 loading="lazy"
@@ -983,19 +937,6 @@ const manualItemLabel = computed(() => {
         <div class="flex justify-end gap-3 mt-6">
           <button @click="closeEditForm" class="px-4 py-2 rounded-lg text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition">取消</button>
           <button @click="saveEditMeta" class="px-4 py-2 rounded-lg text-sm bg-gray-800 hover:bg-gray-700 text-white dark:bg-indigo-600 dark:hover:bg-indigo-500 font-medium transition">保存</button>
-        </div>
-      </div>
-    </div>
-
-    <div v-if="showRestorePrompt" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div class="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-sm shadow-2xl">
-        <h3 class="text-lg font-semibold mb-2">发现自动备份</h3>
-        <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
-          检测到本地有自动备份（{{ formatBackupTime() }}），当前数据库为空。是否恢复？
-        </p>
-        <div class="flex justify-end gap-3">
-          <button @click="dismissRestore" class="px-4 py-2 rounded-lg text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition">跳过</button>
-          <button @click="confirmRestore" class="px-4 py-2 rounded-lg text-sm bg-gray-800 hover:bg-gray-700 text-white dark:bg-indigo-600 dark:hover:bg-indigo-500 font-medium transition">恢复</button>
         </div>
       </div>
     </div>
