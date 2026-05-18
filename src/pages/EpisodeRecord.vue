@@ -84,8 +84,8 @@ async function forceSave() {
     await recordsStore.updateRecord(currentRecordId.value, {
       rating: rating.value,
       review: review.value,
-      images: JSON.stringify(images.value),
-      tags: JSON.stringify(tags.value),
+      images: images.value,
+      tags: tags.value,
       watchedDate: watchedDate.value || null,
     })
     dirty.value = false
@@ -404,7 +404,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('beforeunload', handleBeforeUnload)
-  forceSave()
+  // 先保存草稿（同步操作），forceSave 在路由守卫中已处理
   saveToDraft()
 })
 

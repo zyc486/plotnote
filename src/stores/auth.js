@@ -1,10 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { supabase } from '../utils/supabase'
+import { clearCachedUserId } from '../utils/helpers'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref(null)
   const loading = ref(true)
+  let unsubscribe = null
 
   const isLoggedIn = computed(() => !!user.value)
 
@@ -13,9 +15,10 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = session?.user || null
     loading.value = false
 
-    supabase.auth.onAuthStateChange((_event, session) => {
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
       user.value = session?.user || null
     })
+    unsubscribe = data?.subscription
   }
 
   async function login(email, password) {
@@ -35,6 +38,11 @@ export const useAuthStore = defineStore('auth', () => {
   async function logout() {
     await supabase.auth.signOut()
     user.value = null
+    clearCachedUserId()
+    if (unsubscribe) {
+      unsubscribe.unsubscribe()
+      unsubscribe = null
+    }
   }
 
   return { user, loading, isLoggedIn, init, login, register, logout }

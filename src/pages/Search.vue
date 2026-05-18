@@ -31,6 +31,7 @@ function categoryLabel(key) {
 
 onMounted(async () => {
   const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
   const { data: tags } = await supabase.from('tags').select('name').eq('user_id', user.id)
   allTags.value = (tags || []).map(t => t.name)
 })
@@ -49,9 +50,16 @@ async function doSearch() {
   }
 
   const { data: { user } } = await supabase.auth.getUser()
-  const { data: shows } = await supabase.from('shows').select('*').eq('user_id', user.id)
-  const { data: episodes } = await supabase.from('episodes').select('*').eq('user_id', user.id)
-  const { data: records } = await supabase.from('records').select('*').eq('user_id', user.id)
+  if (!user) return
+
+  const { data: shows, error: showsError } = await supabase.from('shows').select('*').eq('user_id', user.id)
+  const { data: episodes, error: episodesError } = await supabase.from('episodes').select('*').eq('user_id', user.id)
+  const { data: records, error: recordsError } = await supabase.from('records').select('*').eq('user_id', user.id)
+
+  if (showsError || episodesError || recordsError) {
+    console.error('Search query failed:', showsError || episodesError || recordsError)
+    return
+  }
 
   const matches = []
 

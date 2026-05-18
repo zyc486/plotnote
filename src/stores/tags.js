@@ -2,11 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { supabase } from '../utils/supabase'
 import { PREDEFINED_TAGS } from '../db'
-
-async function getUserId() {
-  const { data: { user } } = await supabase.auth.getUser()
-  return user?.id
-}
+import { getUserId } from '../utils/helpers'
 
 export const useTagsStore = defineStore('tags', () => {
   const tags = ref([])
@@ -63,40 +59,31 @@ export const useTagsStore = defineStore('tags', () => {
   }
 
   async function incrementUsage(tagId) {
-    const { data: tag } = await supabase
-      .from('tags')
-      .select('usage_count')
-      .eq('id', tagId)
-      .single()
-    if (tag) {
-      await supabase.from('tags').update({ usage_count: (tag.usage_count || 0) + 1 }).eq('id', tagId)
-      await fetchTags()
-    }
+    const tag = tags.value.find(t => t.id === tagId)
+    if (!tag) return
+    const newCount = (tag.usage_count || 0) + 1
+    // 乐观更新本地状态
+    tag.usage_count = newCount
+    // 后台同步到服务器
+    await supabase.from('tags').update({ usage_count: newCount }).eq('id', tagId)
   }
 
   async function decrementUsage(tagId) {
-    const { data: tag } = await supabase
-      .from('tags')
-      .select('usage_count')
-      .eq('id', tagId)
-      .single()
-    if (tag && tag.usage_count > 0) {
-      await supabase.from('tags').update({ usage_count: tag.usage_count - 1 }).eq('id', tagId)
-      await fetchTags()
-    }
+    const tag = tags.value.find(t => t.id === tagId)
+    if (!tag || tag.usage_count <= 0) return
+    const newCount = tag.usage_count - 1
+    // 乐观更新本地状态
+    tag.usage_count = newCount
+    // 后台同步到服务器
+    await supabase.from('tags').update({ usage_count: newCount }).eq('id', tagId)
   }
 
   function fuzzyMatch(input, tagName) {
     return tagName.includes(input)
   }
 
-  async function searchTags(input) {
-    const userId = await getUserId()
-    const { data } = await supabase
-      .from('tags')
-      .select('*')
-      .eq('user_id', userId)
-    return (data || []).filter(t => fuzzyMatch(input, t.name))
+  function searchTags(input) {
+    return tags.value.filter(t => fuzzyMatch(input, t.name))
   }
 
   return {

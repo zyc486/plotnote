@@ -1,20 +1,14 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import ShowList from '../pages/ShowList.vue'
-import EpisodeList from '../pages/EpisodeList.vue'
-import EpisodeRecord from '../pages/EpisodeRecord.vue'
-import Statistics from '../pages/Statistics.vue'
-import Search from '../pages/Search.vue'
-import Timeline from '../pages/Timeline.vue'
 
 const routes = [
   { path: '/login', name: 'Login', component: () => import('../pages/Login.vue') },
-  { path: '/', name: 'ShowList', component: ShowList, meta: { requiresAuth: true } },
-  { path: '/show/:id', name: 'EpisodeList', component: EpisodeList, meta: { requiresAuth: true } },
-  { path: '/episode/:id', name: 'EpisodeRecord', component: EpisodeRecord, meta: { requiresAuth: true } },
-  { path: '/statistics', name: 'Statistics', component: Statistics, meta: { requiresAuth: true } },
-  { path: '/search', name: 'Search', component: Search, meta: { requiresAuth: true } },
-  { path: '/timeline', name: 'Timeline', component: Timeline, meta: { requiresAuth: true } },
+  { path: '/', name: 'ShowList', component: () => import('../pages/ShowList.vue'), meta: { requiresAuth: true } },
+  { path: '/show/:id', name: 'EpisodeList', component: () => import('../pages/EpisodeList.vue'), meta: { requiresAuth: true } },
+  { path: '/episode/:id', name: 'EpisodeRecord', component: () => import('../pages/EpisodeRecord.vue'), meta: { requiresAuth: true } },
+  { path: '/statistics', name: 'Statistics', component: () => import('../pages/Statistics.vue'), meta: { requiresAuth: true } },
+  { path: '/search', name: 'Search', component: () => import('../pages/Search.vue'), meta: { requiresAuth: true } },
+  { path: '/timeline', name: 'Timeline', component: () => import('../pages/Timeline.vue'), meta: { requiresAuth: true } },
   { path: '/settings', name: 'Settings', component: () => import('../pages/Settings.vue'), meta: { requiresAuth: true } },
   { path: '/:pathMatch(.*)*', redirect: '/' },
 ]

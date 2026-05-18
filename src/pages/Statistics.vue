@@ -89,21 +89,52 @@ const monthlyTrend = computed(() => {
 
 onMounted(async () => {
   const { data: { user } } = await supabase.auth.getUser()
-  const { data: s } = await supabase.from('shows').select('*').eq('user_id', user.id)
-  const { data: e } = await supabase.from('episodes').select('*').eq('user_id', user.id)
-  const { data: r } = await supabase.from('records').select('*').eq('user_id', user.id)
+  if (!user) return
+
+  const { data: s, error: showsError } = await supabase.from('shows').select('*').eq('user_id', user.id)
+  const { data: e, error: episodesError } = await supabase.from('episodes').select('*').eq('user_id', user.id)
+  const { data: r, error: recordsError } = await supabase.from('records').select('*').eq('user_id', user.id)
+
+  if (showsError || episodesError || recordsError) {
+    console.error('Statistics query failed:', showsError || episodesError || recordsError)
+    return
+  }
+
   shows.value = s || []
   allEpisodes.value = e || []
   allRecords.value = (r || []).map(rec => ({ ...rec, watchedDate: rec.watched_date }))
 
+  // 构建索引 Map，避免 O(n²) 的 filter/find 操作
+  const episodesByShow = new Map()
+  for (const ep of allEpisodes.value) {
+    if (!episodesByShow.has(ep.show_id)) episodesByShow.set(ep.show_id, [])
+    episodesByShow.get(ep.show_id).push(ep)
+  }
+
+  const recordsByEpisode = new Map()
+  for (const rec of allRecords.value) {
+    if (!recordsByEpisode.has(rec.episode_id)) recordsByEpisode.set(rec.episode_id, [])
+    recordsByEpisode.get(rec.episode_id).push(rec)
+  }
+
+  const episodeById = new Map()
+  for (const ep of allEpisodes.value) {
+    episodeById.set(ep.id, ep)
+  }
+
   const allStats = []
   for (const show of shows.value) {
-    const episodes = allEpisodes.value.filter(e => e.show_id === show.id)
-    const episodeIds = episodes.map(e => e.id)
-    const records = allRecords.value.filter(r => episodeIds.includes(r.episode_id))
+    const episodes = episodesByShow.get(show.id) || []
 
-    const activeRecords = records.filter(r => {
-      const ep = episodes.find(e => e.id === r.episode_id)
+    // 收集该 show 的所有记录
+    const allShowRecords = []
+    for (const ep of episodes) {
+      const epRecords = recordsByEpisode.get(ep.id) || []
+      allShowRecords.push(...epRecords)
+    }
+
+    const activeRecords = allShowRecords.filter(r => {
+      const ep = episodeById.get(r.episode_id)
       return ep && ep.active_record_id === r.id && r.rating > 0
     })
 
@@ -112,6 +143,7 @@ onMounted(async () => {
     const seasonGroups = {}
     for (const ep of episodes) {
       if (!seasonGroups[ep.season]) seasonGroups[ep.season] = []
+      // 用 Map 查找而不是 Array.find
       const record = ratedRecords.find(r => r.episode_id === ep.id)
       if (record) seasonGroups[ep.season].push({ ...ep, rating: record.rating })
     }
@@ -132,11 +164,11 @@ onMounted(async () => {
       ratedCount: ratedRecords.length,
       avgRating: show.avg_rating || 0,
       highest: ratedRecords.length > 0 ? {
-        episode: episodes.find(e => e.id === ratedRecords[ratedRecords.length - 1].episode_id),
+        episode: episodeById.get(ratedRecords[ratedRecords.length - 1].episode_id),
         rating: ratedRecords[ratedRecords.length - 1].rating,
       } : null,
       lowest: ratedRecords.length > 0 ? {
-        episode: episodes.find(e => e.id === ratedRecords[0].episode_id),
+        episode: episodeById.get(ratedRecords[0].episode_id),
         rating: ratedRecords[0].rating,
       } : null,
       seasonStats,

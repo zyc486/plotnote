@@ -8,7 +8,11 @@ const rules = [
   { pattern: /`(.+?)`/g, replacement: '<code class="px-1 py-0.5 rounded bg-gray-200 dark:bg-gray-700 text-sm">$1</code>' },
   { pattern: /^&gt; (.+)$/gm, replacement: '<blockquote class="pl-3 border-l-2 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 italic">$1</blockquote>' },
   { pattern: /^\- (.+)$/gm, replacement: '<li class="ml-4 list-disc">$1</li>' },
-  { pattern: /\[(.+?)\]\((.+?)\)/g, replacement: '<a href="$2" target="_blank" class="text-indigo-500 hover:underline">$1</a>' },
+  { pattern: /\[(.+?)\]\((.+?)\)/g, replacement: (match, text, url) => {
+    // 只允许 http/https 协议的链接，防止 javascript: XSS
+    const safeUrl = /^https?:\/\//i.test(url) ? url : '#'
+    return `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="text-indigo-500 hover:underline">${text}</a>`
+  }},
   { pattern: /\n{2,}/g, replacement: '</p><p>' },
   { pattern: /\n/g, replacement: '<br>' },
 ]

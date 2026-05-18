@@ -2,11 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { supabase } from '../utils/supabase'
 import { useShowsStore } from './shows'
-
-async function getUserId() {
-  const { data: { user } } = await supabase.auth.getUser()
-  return user?.id
-}
+import { getUserId } from '../utils/helpers'
 
 export const useRecordsStore = defineStore('records', () => {
   const episodeRecords = ref([])

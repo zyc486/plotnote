@@ -436,6 +436,26 @@ async function quickChangeStatus(showId, status, e) {
   props.toast?.('状态已更新', 'success')
 }
 
+async function fetchOneCover(show) {
+  const cat = show.category || 'tv'
+  let image = ''
+  try {
+    if (cat === 'tv') {
+      image = await findTvPoster(show.name) || ''
+    } else if (cat === 'movie') {
+      image = await findMoviePosterFallback(show.name) || ''
+    } else if (cat === 'animation') {
+      let results = await searchAnime(show.name)
+      if (results.length === 0) results = await searchAnimeJikan(show.name)
+      if (results.length > 0) image = results[0].image || ''
+    } else if (cat === 'book') {
+      const results = await searchBooks(show.name)
+      if (results.length > 0) image = results[0].image || ''
+    }
+  } catch {}
+  return { showId: show.id, image }
+}
+
 async function fetchMissingCovers() {
   const missing = store.shows.filter(s => !s.coverImage)
   if (missing.length === 0) {
@@ -445,26 +465,16 @@ async function fetchMissingCovers() {
   fetchingCovers.value = true
   let filled = 0
   try {
-    for (const show of missing) {
-      const cat = show.category || 'tv'
-      let image = ''
-      try {
-        if (cat === 'tv') {
-          image = await findTvPoster(show.name) || ''
-        } else if (cat === 'movie') {
-          image = await findMoviePosterFallback(show.name) || ''
-        } else if (cat === 'animation') {
-          let results = await searchAnime(show.name)
-          if (results.length === 0) results = await searchAnimeJikan(show.name)
-          if (results.length > 0) image = results[0].image || ''
-        } else if (cat === 'book') {
-          const results = await searchBooks(show.name)
-          if (results.length > 0) image = results[0].image || ''
+    // 分批并行请求，每批最多 5 个
+    const BATCH_SIZE = 5
+    for (let i = 0; i < missing.length; i += BATCH_SIZE) {
+      const batch = missing.slice(i, i + BATCH_SIZE)
+      const results = await Promise.allSettled(batch.map(s => fetchOneCover(s)))
+      for (const result of results) {
+        if (result.status === 'fulfilled' && result.value.image) {
+          await store.updateShowCover(result.value.showId, result.value.image)
+          filled++
         }
-      } catch {}
-      if (image) {
-        await store.updateShowCover(show.id, image)
-        filled++
       }
     }
     await store.fetchShows()

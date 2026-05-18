@@ -44,9 +44,20 @@ async function loadTimeline() {
   loading.value = true
   try {
     const { data: { user } } = await supabase.auth.getUser()
-    const { data: records } = await supabase.from('records').select('*').eq('user_id', user.id)
-    const { data: episodes } = await supabase.from('episodes').select('*').eq('user_id', user.id)
-    const { data: shows } = await supabase.from('shows').select('*').eq('user_id', user.id)
+    if (!user) {
+      loading.value = false
+      return
+    }
+
+    const { data: records, error: recordsError } = await supabase.from('records').select('*').eq('user_id', user.id)
+    const { data: episodes, error: episodesError } = await supabase.from('episodes').select('*').eq('user_id', user.id)
+    const { data: shows, error: showsError } = await supabase.from('shows').select('*').eq('user_id', user.id)
+
+    if (recordsError || episodesError || showsError) {
+      console.error('Timeline query failed:', recordsError || episodesError || showsError)
+      loading.value = false
+      return
+    }
 
     const showMap = {}
     for (const s of (shows || [])) showMap[s.id] = s

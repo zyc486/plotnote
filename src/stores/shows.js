@@ -1,11 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { supabase } from '../utils/supabase'
-
-async function getUserId() {
-  const { data: { user } } = await supabase.auth.getUser()
-  return user?.id
-}
+import { getUserId } from '../utils/helpers'
 
 export const useShowsStore = defineStore('shows', () => {
   const shows = ref([])
@@ -150,6 +146,14 @@ export const useShowsStore = defineStore('shows', () => {
 
     if (!episodes || episodes.length === 0) {
       await supabase.from('shows').update({ avg_rating: 0, rated_count: 0 }).eq('id', showId)
+      // 更新本地状态
+      const show = shows.value.find(s => s.id === showId)
+      if (show) {
+        show.avgRating = 0
+        show.avg_rating = 0
+        show.ratedCount = 0
+        show.rated_count = 0
+      }
       return
     }
 
@@ -160,7 +164,13 @@ export const useShowsStore = defineStore('shows', () => {
 
     if (activeRecordIds.length === 0) {
       await supabase.from('shows').update({ avg_rating: 0, rated_count: 0 }).eq('id', showId)
-      await fetchShows()
+      const show = shows.value.find(s => s.id === showId)
+      if (show) {
+        show.avgRating = 0
+        show.avg_rating = 0
+        show.ratedCount = 0
+        show.rated_count = 0
+      }
       return
     }
 
@@ -174,12 +184,20 @@ export const useShowsStore = defineStore('shows', () => {
       ? ratedRecords.reduce((sum, r) => sum + r.rating, 0) / ratedRecords.length
       : 0
 
+    const roundedAvg = Math.round(avgRating * 10) / 10
     await supabase.from('shows').update({
-      avg_rating: Math.round(avgRating * 10) / 10,
+      avg_rating: roundedAvg,
       rated_count: ratedRecords.length,
     }).eq('id', showId)
 
-    await fetchShows()
+    // 更新本地状态，避免全量重新获取
+    const show = shows.value.find(s => s.id === showId)
+    if (show) {
+      show.avgRating = roundedAvg
+      show.avg_rating = roundedAvg
+      show.ratedCount = ratedRecords.length
+      show.rated_count = ratedRecords.length
+    }
   }
 
   async function deleteShow(showId) {
@@ -223,7 +241,14 @@ export const useShowsStore = defineStore('shows', () => {
   }
 
   async function updateLastWatchedAt(showId) {
-    await supabase.from('shows').update({ last_watched_at: new Date().toISOString() }).eq('id', showId)
+    const now = new Date().toISOString()
+    await supabase.from('shows').update({ last_watched_at: now }).eq('id', showId)
+    // 更新本地状态
+    const show = shows.value.find(s => s.id === showId)
+    if (show) {
+      show.last_watched_at = now
+      show.lastWatchedAt = new Date(now).getTime()
+    }
   }
 
   async function getAllSeries() {

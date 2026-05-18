@@ -3,11 +3,7 @@ import { ref } from 'vue'
 import { supabase } from '../utils/supabase'
 import { useShowsStore } from './shows'
 import { episodeLabel as epLabel } from '../utils/terminology'
-
-async function getUserId() {
-  const { data: { user } } = await supabase.auth.getUser()
-  return user?.id
-}
+import { getUserId } from '../utils/helpers'
 
 export const useEpisodesStore = defineStore('episodes', () => {
   const episodes = ref([])
