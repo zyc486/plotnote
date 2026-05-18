@@ -8,3 +8,18 @@ dist/
 .vscode/settings.json
 src/secrets.js
 src/config.js
+
+# Temporary files
+bash.exe.stackdump
+*.stackdump
+test-results/
+vite-err.txt
+vite-out.txt
+
+# IDE
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db

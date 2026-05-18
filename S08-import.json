@@ -1,0 +1,434 @@
+{
+  "version": 3,
+  "exportedAt": "2026-05-17T08:03:35.777Z",
+  "shows": [
+    {
+      "id": 1,
+      "name": "生活大爆炸 第八季",
+      "avg_rating": 7.4,
+      "rated_count": 24,
+      "total_episodes": 24,
+      "category": "tv",
+      "region": "美国",
+      "genres": "[\"喜剧\"]",
+      "cover_image": "https://static.tvmaze.com/uploads/images/medium_portrait/173/433868.jpg",
+      "status": "finished",
+      "last_watched_at": "2026-05-17T08:03:35.777Z"
+    }
+  ],
+  "episodes": [
+    {
+      "id": 1,
+      "show_id": 1,
+      "season": 8,
+      "episode": 1,
+      "active_record_id": 1
+    },
+    {
+      "id": 2,
+      "show_id": 1,
+      "season": 8,
+      "episode": 2,
+      "active_record_id": 2
+    },
+    {
+      "id": 3,
+      "show_id": 1,
+      "season": 8,
+      "episode": 3,
+      "active_record_id": 3
+    },
+    {
+      "id": 4,
+      "show_id": 1,
+      "season": 8,
+      "episode": 4,
+      "active_record_id": 4
+    },
+    {
+      "id": 5,
+      "show_id": 1,
+      "season": 8,
+      "episode": 5,
+      "active_record_id": 5
+    },
+    {
+      "id": 6,
+      "show_id": 1,
+      "season": 8,
+      "episode": 6,
+      "active_record_id": 6
+    },
+    {
+      "id": 7,
+      "show_id": 1,
+      "season": 8,
+      "episode": 7,
+      "active_record_id": 7
+    },
+    {
+      "id": 8,
+      "show_id": 1,
+      "season": 8,
+      "episode": 8,
+      "active_record_id": 8
+    },
+    {
+      "id": 9,
+      "show_id": 1,
+      "season": 8,
+      "episode": 9,
+      "active_record_id": 9
+    },
+    {
+      "id": 10,
+      "show_id": 1,
+      "season": 8,
+      "episode": 10,
+      "active_record_id": 10
+    },
+    {
+      "id": 11,
+      "show_id": 1,
+      "season": 8,
+      "episode": 11,
+      "active_record_id": 11
+    },
+    {
+      "id": 12,
+      "show_id": 1,
+      "season": 8,
+      "episode": 12,
+      "active_record_id": 12
+    },
+    {
+      "id": 13,
+      "show_id": 1,
+      "season": 8,
+      "episode": 13,
+      "active_record_id": 13
+    },
+    {
+      "id": 14,
+      "show_id": 1,
+      "season": 8,
+      "episode": 14,
+      "active_record_id": 14
+    },
+    {
+      "id": 15,
+      "show_id": 1,
+      "season": 8,
+      "episode": 15,
+      "active_record_id": 15
+    },
+    {
+      "id": 16,
+      "show_id": 1,
+      "season": 8,
+      "episode": 16,
+      "active_record_id": 16
+    },
+    {
+      "id": 17,
+      "show_id": 1,
+      "season": 8,
+      "episode": 17,
+      "active_record_id": 17
+    },
+    {
+      "id": 18,
+      "show_id": 1,
+      "season": 8,
+      "episode": 18,
+      "active_record_id": 18
+    },
+    {
+      "id": 19,
+      "show_id": 1,
+      "season": 8,
+      "episode": 19,
+      "active_record_id": 19
+    },
+    {
+      "id": 20,
+      "show_id": 1,
+      "season": 8,
+      "episode": 20,
+      "active_record_id": 20
+    },
+    {
+      "id": 21,
+      "show_id": 1,
+      "season": 8,
+      "episode": 21,
+      "active_record_id": 21
+    },
+    {
+      "id": 22,
+      "show_id": 1,
+      "season": 8,
+      "episode": 22,
+      "active_record_id": 22
+    },
+    {
+      "id": 23,
+      "show_id": 1,
+      "season": 8,
+      "episode": 23,
+      "active_record_id": 23
+    },
+    {
+      "id": 24,
+      "show_id": 1,
+      "season": 8,
+      "episode": 24,
+      "active_record_id": 24
+    }
+  ],
+  "records": [
+    {
+      "id": 1,
+      "episode_id": 1,
+      "rating": 6,
+      "review": "不是很喜欢吵架 可怜的霍华德",
+      "images": "[]",
+      "tags": "[]",
+      "created_at": "2026-05-17T08:03:35.777Z",
+      "watched_date": ""
+    },
+    {
+      "id": 2,
+      "episode_id": 2,
+      "rating": 7,
+      "review": "结尾不错",
+      "images": "[]",
+      "tags": "[]",
+      "created_at": "2026-05-17T08:03:35.777Z",
+      "watched_date": ""
+    },
+    {
+      "id": 3,
+      "episode_id": 3,
+      "rating": 8,
+      "review": "开球这段很好玩",
+      "images": "[]",
+      "tags": "[]",
+      "created_at": "2026-05-17T08:03:35.777Z",
+      "watched_date": ""
+    },
+    {
+      "id": 4,
+      "episode_id": 4,
+      "rating": 5,
+      "review": "不好玩 笑点略低俗 可怜霍华德",
+      "images": "[]",
+      "tags": "[]",
+      "created_at": "2026-05-17T08:03:35.777Z",
+      "watched_date": ""
+    },
+    {
+      "id": 5,
+      "episode_id": 5,
+      "rating": 7,
+      "review": "好玩 女生们那边有点奔放",
+      "images": "[]",
+      "tags": "[]",
+      "created_at": "2026-05-17T08:03:35.777Z",
+      "watched_date": ""
+    },
+    {
+      "id": 6,
+      "episode_id": 6,
+      "rating": 8,
+      "review": "矿井好玩 霍华黛特好玩",
+      "images": "[]",
+      "tags": "[]",
+      "created_at": "2026-05-17T08:03:35.777Z",
+      "watched_date": ""
+    },
+    {
+      "id": 7,
+      "episode_id": 7,
+      "rating": 7,
+      "review": "怪医生还挺好玩",
+      "images": "[]",
+      "tags": "[]",
+      "created_at": "2026-05-17T08:03:35.777Z",
+      "watched_date": ""
+    },
+    {
+      "id": 8,
+      "episode_id": 8,
+      "rating": 8,
+      "review": "整体不错 温馨轻松 除了小霍",
+      "images": "[]",
+      "tags": "[]",
+      "created_at": "2026-05-17T08:03:35.777Z",
+      "watched_date": ""
+    },
+    {
+      "id": 9,
+      "episode_id": 9,
+      "rating": 7,
+      "review": "谢尔顿还挺好的",
+      "images": "[]",
+      "tags": "[]",
+      "created_at": "2026-05-17T08:03:35.777Z",
+      "watched_date": ""
+    },
+    {
+      "id": 10,
+      "episode_id": 10,
+      "rating": 8,
+      "review": "有意义 好玩",
+      "images": "[]",
+      "tags": "[]",
+      "created_at": "2026-05-17T08:03:35.777Z",
+      "watched_date": ""
+    },
+    {
+      "id": 11,
+      "episode_id": 11,
+      "rating": 7,
+      "review": "圣诞节主题 但无尘室有点无聊",
+      "images": "[]",
+      "tags": "[]",
+      "created_at": "2026-05-17T08:03:35.777Z",
+      "watched_date": ""
+    },
+    {
+      "id": 12,
+      "episode_id": 12,
+      "rating": 7,
+      "review": "整体不错 拉杰很好玩",
+      "images": "[]",
+      "tags": "[]",
+      "created_at": "2026-05-17T08:03:35.777Z",
+      "watched_date": ""
+    },
+    {
+      "id": 13,
+      "episode_id": 13,
+      "rating": 8,
+      "review": "女朋友还是狗的游戏很好玩",
+      "images": "[]",
+      "tags": "[]",
+      "created_at": "2026-05-17T08:03:35.777Z",
+      "watched_date": ""
+    },
+    {
+      "id": 14,
+      "episode_id": 14,
+      "rating": 8,
+      "review": "黑历史好看",
+      "images": "[]",
+      "tags": "[]",
+      "created_at": "2026-05-17T08:03:35.777Z",
+      "watched_date": ""
+    },
+    {
+      "id": 15,
+      "episode_id": 15,
+      "rating": 10,
+      "review": "母亲去世 霍华德迈向成熟",
+      "images": "[]",
+      "tags": "[]",
+      "created_at": "2026-05-17T08:03:35.777Z",
+      "watched_date": ""
+    },
+    {
+      "id": 16,
+      "episode_id": 16,
+      "rating": 9,
+      "review": "伯纳黛特成为了霍华德的守护神",
+      "images": "[]",
+      "tags": "[]",
+      "created_at": "2026-05-17T08:03:35.777Z",
+      "watched_date": ""
+    },
+    {
+      "id": 17,
+      "episode_id": 17,
+      "rating": 6,
+      "review": "结尾有点吓人 整体略微无聊",
+      "images": "[]",
+      "tags": "[]",
+      "created_at": "2026-05-17T08:03:35.777Z",
+      "watched_date": ""
+    },
+    {
+      "id": 18,
+      "episode_id": 18,
+      "rating": 9,
+      "review": "生命总会消逝 爱会永远延续",
+      "images": "[]",
+      "tags": "[]",
+      "created_at": "2026-05-17T08:03:35.777Z",
+      "watched_date": ""
+    },
+    {
+      "id": 19,
+      "episode_id": 19,
+      "rating": 6,
+      "review": "乒乓球这段还挺好玩",
+      "images": "[]",
+      "tags": "[]",
+      "created_at": "2026-05-17T08:03:35.777Z",
+      "watched_date": ""
+    },
+    {
+      "id": 20,
+      "episode_id": 20,
+      "rating": 7,
+      "review": "莱纳德佩妮这段不太好看",
+      "images": "[]",
+      "tags": "[]",
+      "created_at": "2026-05-17T08:03:35.777Z",
+      "watched_date": ""
+    },
+    {
+      "id": 21,
+      "episode_id": 21,
+      "rating": 6,
+      "review": "略显无聊",
+      "images": "[]",
+      "tags": "[]",
+      "created_at": "2026-05-17T08:03:35.777Z",
+      "watched_date": ""
+    },
+    {
+      "id": 22,
+      "episode_id": 22,
+      "rating": 8,
+      "review": "拉杰真的很好玩",
+      "images": "[]",
+      "tags": "[]",
+      "created_at": "2026-05-17T08:03:35.777Z",
+      "watched_date": ""
+    },
+    {
+      "id": 23,
+      "episode_id": 23,
+      "rating": 7,
+      "review": "霍华德那边很好玩",
+      "images": "[]",
+      "tags": "[]",
+      "created_at": "2026-05-17T08:03:35.777Z",
+      "watched_date": ""
+    },
+    {
+      "id": 24,
+      "episode_id": 24,
+      "rating": 9,
+      "review": "谢尔顿拿出戒指很感人",
+      "images": "[]",
+      "tags": "[]",
+      "created_at": "2026-05-17T08:03:35.777Z",
+      "watched_date": ""
+    }
+  ],
+  "tags": [],
+  "genreHistory": [],
+  "series": []
+}
