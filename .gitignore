@@ -21,5 +21,8 @@ vite-out.txt
 *.swp
 *.swo
 
+# Claude Code
+.claude/
+
 # OS
 Thumbs.db
