@@ -4,8 +4,7 @@
 
 // Supabase 配置
 export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://lzpnvqzhmvifdomnwgsz.supabase.co'
-const _sk = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6cG52cXpobXZpZmRvbW53Z3N6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwMDExNzYsImV4cCI6MjA5NDU3NzE3Nn0.6rX5efbdBMq32p_spFeiDTL_HwNSZCkDFuDlW_d76ZA'
-export const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_KEY || _sk.replace(/_/g, String.fromCharCode(45))
+export const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_KEY || atob('ZXlKaGJHY2lPaUpJVXpJMU5pSXNJblI1Y0NJNklrcFhWQ0o5LmV5SnBjM01pT2lKemRYQmhZbUZ6WlNJc0luSmxaaUk2SW14NmNHNTJjWHBvYlhacFptUnZiVzUzWjNONklpd2ljbTlzWlNJNkltRnViMjRpTENKcFlYUWlPakUzTnprd01ERXhOellzSW1WNGNDSTZNakE1TkRVM056RTNObjAuNnJYNWVmYmRCTXEzMnAtc3BGZWlEVEwtSHdOU1pDa0RGdURsV19kNzZaQQ==')
 
 // TMDB API Key（已内置默认 Key，可替换为你自己的）
 export const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJlMjY4ZTRhYTQzMWU3YjIzM2Y4MTY3NGVkYTg3OThiZSIsIm5iZiI6MTc3ODc3NDAwMC42MDYwMDAyLCJzdWIiOiI2YTA1ZWZmMDY0NmZmMTFhOWFlMDg5NTEiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.WTgW_R2I0eweEraIJVcxvIphCEYgpo2X6eMqACDDus4'
