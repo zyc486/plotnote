@@ -7,7 +7,6 @@ dist/
 !.env.example
 .vscode/settings.json
 src/secrets.js
-src/config.js
 
 # Temporary files
 bash.exe.stackdump
