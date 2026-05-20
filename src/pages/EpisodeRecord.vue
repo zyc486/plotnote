@@ -52,6 +52,9 @@ const epTerm = computed(() => {
 const showPicker = ref(false)
 const pickerSeason = ref(0)
 const showSidebarMobile = ref(false)
+const rightSeason = ref(0)
+const episodeScores = ref({})
+const showRightPanel = ref(true)
 
 const seasonLabel = computed(() => {
   const cat = show.value?.category || 'tv'
@@ -122,6 +125,13 @@ const debouncedSaveRating = debounce(async (val) => {
   if (currentRecordId.value) {
     await recordsStore.updateRecord(currentRecordId.value, { rating: val })
     dirty.value = false
+    // 更新右侧选集面板的评分
+    if (episode.value) {
+      episodeScores.value = {
+        ...episodeScores.value,
+        [episode.value.id]: { rating: val, count: Math.max(episodeScores.value[episode.value.id]?.count || 1, 1) },
+      }
+    }
   }
   saveToDraft()
 }, 300)
@@ -219,6 +229,31 @@ function watchCount(episodeId) {
   return episodeRecords.value.filter(r => r.episodeId === episodeId).length
 }
 
+async function fetchEpisodeScores() {
+  if (!show.value) return
+  const episodeIds = episodesStore.episodes.map(e => e.id)
+  if (!episodeIds.length) { episodeScores.value = {}; return }
+  const { data: records } = await supabase
+    .from('records')
+    .select('id, episode_id, rating')
+    .in('episode_id', episodeIds)
+
+  const scores = {}
+  for (const ep of episodesStore.episodes) {
+    const epRecords = (records || []).filter(r => r.episode_id === ep.id)
+    const rated = epRecords.find(r => r.rating > 0)
+    scores[ep.id] = { rating: rated?.rating || 0, count: epRecords.length }
+  }
+  episodeScores.value = scores
+}
+
+function scrollToCurrent() {
+  nextTick(() => {
+    const el = document.getElementById(`ep-nav-${episode.value?.id}`)
+    el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  })
+}
+
 async function initPage() {
   loaded.value = false
   skipWatchers = true
@@ -236,6 +271,9 @@ async function initPage() {
   episodeLabel.value = episodesStore.episodeLabel(episode.value)
 
   await episodesStore.fetchEpisodes(episode.value.show_id)
+  await fetchEpisodeScores()
+  rightSeason.value = episode.value.season || availableSeasons.value[0] || 0
+
   const { prev, next } = episodesStore.getAdjacentEpisodes(episodeId)
   prevEpisode.value = prev
   nextEpisode.value = next
@@ -599,6 +637,59 @@ onBeforeRouteLeave(async (to, from, next) => {
           </div>
         </div>
       </main>
+
+      <!-- 右侧选集面板 -->
+      <aside class="w-48 flex-shrink-0 border-l border-zinc-200/60 dark:border-zinc-800 overflow-hidden flex flex-col hidden xl:flex" :class="{ '!hidden': !showRightPanel }">
+        <div class="flex items-center justify-between px-3 py-2.5 border-b border-zinc-200/60 dark:border-zinc-800">
+          <span class="text-[10px] text-zinc-400 dark:text-zinc-500 uppercase tracking-wider font-medium">选集</span>
+          <button @click="showRightPanel = false" class="text-zinc-300 hover:text-zinc-500 dark:text-zinc-600 dark:hover:text-zinc-400 text-xs leading-none">×</button>
+        </div>
+
+        <!-- 季标签 -->
+        <div v-if="availableSeasons.length > 1" class="flex gap-0.5 px-2 py-1.5 border-b border-zinc-100 dark:border-zinc-800 overflow-x-auto">
+          <button
+            v-for="s in availableSeasons" :key="s"
+            @click="rightSeason = s"
+            class="px-2 py-0.5 text-[10px] rounded-md font-medium transition-colors whitespace-nowrap flex-shrink-0"
+            :class="rightSeason === s ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 dark:text-zinc-500'"
+          >S{{ s }}</button>
+        </div>
+
+        <!-- 集数列表 -->
+        <div class="flex-1 overflow-y-auto">
+          <template v-for="ep in episodesStore.episodes.filter(e => rightSeason === 0 || e.season === rightSeason)" :key="ep.id">
+            <button
+              :id="`ep-nav-${ep.id}`"
+              @click="selectEpisode(ep)"
+              class="w-full flex items-center gap-2.5 px-3 py-2 transition-colors text-left group"
+              :class="ep.id === episode?.id
+                ? 'bg-amber-50 dark:bg-amber-900/20 border-l-2 border-amber-400'
+                : 'border-l-2 border-transparent hover:bg-zinc-50 dark:hover:bg-zinc-800/50'"
+            >
+              <span
+                class="text-xs font-medium tabular-nums w-5 text-right flex-shrink-0"
+                :class="ep.id === episode?.id ? 'text-amber-600 dark:text-amber-400' : 'text-zinc-500 dark:text-zinc-400'"
+              >{{ String(ep.episode).padStart(2, '0') }}</span>
+              <span
+                v-if="episodeScores[ep.id]?.rating > 0"
+                class="text-[11px] font-bold text-amber-500 tabular-nums"
+              >{{ Number(episodeScores[ep.id].rating).toFixed(1) }}</span>
+              <span
+                v-else-if="episodeScores[ep.id]?.count > 0"
+                class="text-[11px] text-zinc-300 dark:text-zinc-600"
+              >—</span>
+              <span
+                v-else
+                class="text-[11px] text-zinc-200 dark:text-zinc-700 opacity-0 group-hover:opacity-100 transition-opacity tabular-nums"
+              >—</span>
+              <span
+                v-if="episodeScores[ep.id]?.count > 1"
+                class="text-[9px] text-zinc-300 dark:text-zinc-600 ml-auto"
+              >×{{ episodeScores[ep.id].count }}</span>
+            </button>
+          </template>
+        </div>
+      </aside>
     </div>
 
     <!-- 加载状态 -->
