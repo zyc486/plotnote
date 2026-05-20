@@ -657,7 +657,6 @@ onBeforeRouteLeave(async (to, from, next) => {
               <button @click="insertLine('---')" title="分割线" class="w-7 h-7 flex items-center justify-center rounded-md text-xs text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">—</button>
               <span class="w-px h-4 bg-zinc-200 dark:bg-zinc-700 mx-0.5"></span>
               <button @click="insertFmt('[', '](url)')" title="链接" class="w-7 h-7 flex items-center justify-center rounded-md text-xs text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">🔗</button>
-              <button @click="insertFmt('`', '`')" title="行内代码" class="w-7 h-7 flex items-center justify-center rounded-md text-xs text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors font-mono">&lt;/&gt;</button>
             </div>
 
             <textarea
