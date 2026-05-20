@@ -337,12 +337,18 @@ function goBack() {
 
       <div v-if="monthlyTrend.length > 0" class="bg-gray-100 dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
         <h3 class="text-sm text-gray-500 dark:text-gray-400 mb-3">月度观看趋势（近12月）</h3>
-        <div class="flex items-end gap-1 h-28">
-          <div v-for="m in monthlyTrend" :key="m.label" class="flex-1 flex flex-col items-center justify-end h-full">
-            <span class="text-[10px] text-gray-400 dark:text-gray-500 mb-1">{{ m.count }}</span>
-            <div class="w-full rounded-t transition-all duration-500 bg-indigo-500" :style="{ height: m.percent + '%' }"></div>
-            <span class="text-[10px] text-gray-500 dark:text-gray-400 mt-1">{{ m.label }}</span>
+        <div class="flex gap-1 h-32">
+          <div v-for="m in monthlyTrend" :key="m.label" class="flex-1 flex flex-col justify-end items-center">
+            <span class="text-[10px] text-gray-400 dark:text-gray-500 mb-0.5">{{ m.count || '' }}</span>
+            <div
+              class="w-full rounded-t transition-all duration-500"
+              :class="m.percent >= 80 ? 'bg-indigo-500' : m.percent >= 40 ? 'bg-indigo-400' : 'bg-indigo-300 dark:bg-indigo-700'"
+              :style="{ height: (m.count > 0 ? Math.max(m.percent, 5) : 0) + '%' }"
+            ></div>
           </div>
+        </div>
+        <div class="flex gap-1 mt-1.5">
+          <span v-for="m in monthlyTrend" :key="'lb-' + m.label" class="flex-1 text-center text-[10px] text-gray-500 dark:text-gray-400">{{ m.label }}</span>
         </div>
       </div>
     </div>
