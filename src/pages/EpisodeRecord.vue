@@ -231,20 +231,27 @@ function watchCount(episodeId) {
 
 async function fetchEpisodeScores() {
   if (!show.value) return
+  const userId = (await supabase.auth.getUser()).data?.user?.id
+  if (!userId) return
   const episodeIds = episodesStore.episodes.map(e => e.id)
   if (!episodeIds.length) { episodeScores.value = {}; return }
-  const { data: records } = await supabase
-    .from('records')
-    .select('id, episode_id, rating')
-    .in('episode_id', episodeIds)
-
-  const scores = {}
-  for (const ep of episodesStore.episodes) {
-    const epRecords = (records || []).filter(r => r.episode_id === ep.id)
-    const rated = epRecords.find(r => r.rating > 0)
-    scores[ep.id] = { rating: rated?.rating || 0, count: epRecords.length }
+  try {
+    const { data: records, error } = await supabase
+      .from('records')
+      .select('id, episode_id, rating')
+      .in('episode_id', episodeIds)
+      .eq('user_id', userId)
+    if (error) { console.warn('fetchEpisodeScores:', error.message); return }
+    const scores = {}
+    for (const ep of episodesStore.episodes) {
+      const epRecords = (records || []).filter(r => r.episode_id === ep.id)
+      const rated = epRecords.find(r => r.rating > 0)
+      scores[ep.id] = { rating: rated?.rating || 0, count: epRecords.length }
+    }
+    episodeScores.value = scores
+  } catch (e) {
+    console.warn('fetchEpisodeScores failed:', e)
   }
-  episodeScores.value = scores
 }
 
 function scrollToCurrent() {
@@ -258,73 +265,80 @@ async function initPage() {
   loaded.value = false
   skipWatchers = true
 
-  const episodeId = Number(route.params.id)
-  episode.value = await episodesStore.getEpisode(episodeId)
+  try {
+    const episodeId = Number(route.params.id)
+    episode.value = await episodesStore.getEpisode(episodeId)
 
-  if (!episode.value) {
+    if (!episode.value) {
+      router.push('/')
+      return
+    }
+
+    show.value = await showsStore.getShow(episode.value.show_id)
+    episode.value._category = show.value?.category || 'tv'
+    episodeLabel.value = episodesStore.episodeLabel(episode.value)
+
+    await episodesStore.fetchEpisodes(episode.value.show_id)
+    await fetchEpisodeScores()
+    rightSeason.value = episode.value.season || availableSeasons.value[0] || 0
+
+    const { prev, next } = episodesStore.getAdjacentEpisodes(episodeId)
+    prevEpisode.value = prev
+    nextEpisode.value = next
+
+    currentRecordId.value = null
+    rating.value = 0
+    review.value = ''
+    images.value = []
+    tags.value = []
+    watchedDate.value = new Date().toISOString().split('T')[0]
+    dirty.value = false
+
+    const activeRecord = await recordsStore.getActiveRecord(episodeId)
+
+    if (activeRecord) {
+      currentRecordId.value = activeRecord.id
+      rating.value = activeRecord.rating ?? 0
+      review.value = activeRecord.review ?? ''
+      images.value = parseJsonSafe(activeRecord.images)
+      tags.value = parseJsonSafe(activeRecord.tags)
+      watchedDate.value = activeRecord.watchedDate || new Date().toISOString().split('T')[0]
+    } else {
+      const draft = loadDraft(episodeId)
+      if (draft) {
+        rating.value = draft.rating ?? 0
+        review.value = draft.review ?? ''
+        images.value = draft.images ?? []
+        tags.value = draft.tags ?? []
+        if (draft.watchedDate) watchedDate.value = draft.watchedDate
+      }
+    }
+
+    await loadEpisodeRecords()
+
+    if (hasOmdbKey() && show.value) {
+      loadingRatings.value = true
+      const cat = show.value.category || 'tv'
+      const type = cat === 'book' ? '' : cat === 'movie' ? 'movie' : 'series'
+      if (type) {
+        externalRatings.value = await getRatingsByTitle(show.value.name, type)
+      }
+      loadingRatings.value = false
+    }
+
+    await nextTick()
+    skipWatchers = false
+
+    const textarea = document.querySelector('textarea')
+    if (textarea && !review.value) {
+      textarea.focus()
+    }
+  } catch (e) {
+    console.error('initPage failed:', e)
     router.push('/')
     return
-  }
-
-  show.value = await showsStore.getShow(episode.value.show_id)
-  episode.value._category = show.value?.category || 'tv'
-  episodeLabel.value = episodesStore.episodeLabel(episode.value)
-
-  await episodesStore.fetchEpisodes(episode.value.show_id)
-  await fetchEpisodeScores()
-  rightSeason.value = episode.value.season || availableSeasons.value[0] || 0
-
-  const { prev, next } = episodesStore.getAdjacentEpisodes(episodeId)
-  prevEpisode.value = prev
-  nextEpisode.value = next
-
-  currentRecordId.value = null
-  rating.value = 0
-  review.value = ''
-  images.value = []
-  tags.value = []
-  watchedDate.value = new Date().toISOString().split('T')[0]
-  dirty.value = false
-
-  const activeRecord = await recordsStore.getActiveRecord(episodeId)
-
-  if (activeRecord) {
-    currentRecordId.value = activeRecord.id
-    rating.value = activeRecord.rating ?? 0
-    review.value = activeRecord.review ?? ''
-    images.value = parseJsonSafe(activeRecord.images)
-    tags.value = parseJsonSafe(activeRecord.tags)
-    watchedDate.value = activeRecord.watchedDate || new Date().toISOString().split('T')[0]
-  } else {
-    const draft = loadDraft(episodeId)
-    if (draft) {
-      rating.value = draft.rating ?? 0
-      review.value = draft.review ?? ''
-      images.value = draft.images ?? []
-      tags.value = draft.tags ?? []
-      if (draft.watchedDate) watchedDate.value = draft.watchedDate
-    }
-  }
-
-  await loadEpisodeRecords()
-  loaded.value = true
-
-  if (hasOmdbKey() && show.value) {
-    loadingRatings.value = true
-    const cat = show.value.category || 'tv'
-    const type = cat === 'book' ? '' : cat === 'movie' ? 'movie' : 'series'
-    if (type) {
-      externalRatings.value = await getRatingsByTitle(show.value.name, type)
-    }
-    loadingRatings.value = false
-  }
-
-  await nextTick()
-  skipWatchers = false
-
-  const textarea = document.querySelector('textarea')
-  if (textarea && !review.value) {
-    textarea.focus()
+  } finally {
+    loaded.value = true
   }
 }
 
