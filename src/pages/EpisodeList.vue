@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { supabase } from '../utils/supabase'
 import { useShowsStore } from '../stores/shows'
 import { getTerminology } from '../utils/terminology'
+import { findShowCredits } from '../utils/tmdb'
 import { CATEGORIES } from '../db'
 import CoverImage from '../components/CoverImage.vue'
 
@@ -20,6 +21,9 @@ const jumpInput = ref('')
 const jumpError = ref('')
 const activeSeason = ref(null)
 const showCoverLightbox = ref(false)
+const credits = ref({ cast: [], crew: [] })
+const creditsExpanded = ref(false)
+const loadingCredits = ref(false)
 
 const showsStore = useShowsStore()
 
@@ -94,6 +98,9 @@ onMounted(async () => {
   const showId = Number(route.params.id)
   show.value = await showsStore.getShow(showId)
 
+  // 异步加载演职员信息
+  loadCredits()
+
   const { data: eps } = await supabase
     .from('episodes')
     .select('*')
@@ -130,6 +137,21 @@ function getRecord(episodeId) {
 
 function goToEpisode(episodeId) {
   router.push(`/episode/${episodeId}`)
+}
+
+async function loadCredits() {
+  if (!show.value) return
+  const cat = show.value.category || 'tv'
+  if (cat === 'book') return // 图书没有演职员
+  loadingCredits.value = true
+  try {
+    const result = await findShowCredits(show.value.name, cat === 'movie' ? 'movie' : 'tv')
+    credits.value = result
+  } catch {
+    credits.value = { cast: [], crew: [] }
+  } finally {
+    loadingCredits.value = false
+  }
 }
 
 function categoryLabel(key) {
@@ -254,6 +276,49 @@ function handleJump() {
             </span>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- 演职员 -->
+    <div v-if="show && show.category !== 'book'" class="mb-6">
+      <button
+        @click="creditsExpanded = !creditsExpanded"
+        class="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition"
+      >
+        <span>演职员</span>
+        <span v-if="loadingCredits" class="inline-block animate-spin rounded-full h-3 w-3 border border-gray-400 border-t-transparent"></span>
+        <span v-else class="text-xs transition-transform duration-200" :class="{ 'rotate-90': creditsExpanded }">▶</span>
+      </button>
+      <div v-if="creditsExpanded" class="mt-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 md:p-4 space-y-3">
+        <div v-if="credits.crew.length > 0">
+          <h4 class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">主创</h4>
+          <div class="flex flex-wrap gap-2">
+            <span
+              v-for="p in credits.crew"
+              :key="p.name + p.job"
+              class="inline-flex items-center gap-1.5 px-2 py-1 bg-white dark:bg-gray-700 rounded-full text-xs text-gray-700 dark:text-gray-300 shadow-sm"
+            >
+              <img v-if="p.profile" :src="p.profile" class="w-4 h-4 rounded-full object-cover" loading="lazy" @error="$event.target.style.display='none'" />
+              <span>{{ p.name }}</span>
+              <span class="text-gray-400 dark:text-gray-500">· {{ p.job }}</span>
+            </span>
+          </div>
+        </div>
+        <div v-if="credits.cast.length > 0">
+          <h4 class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">演员</h4>
+          <div class="flex flex-wrap gap-2">
+            <span
+              v-for="p in credits.cast"
+              :key="p.name + p.character"
+              class="inline-flex items-center gap-1.5 px-2 py-1 bg-white dark:bg-gray-700 rounded-full text-xs text-gray-700 dark:text-gray-300 shadow-sm"
+            >
+              <img v-if="p.profile" :src="p.profile" class="w-4 h-4 rounded-full object-cover" loading="lazy" @error="$event.target.style.display='none'" />
+              <span>{{ p.name }}</span>
+              <span v-if="p.character" class="text-gray-400 dark:text-gray-500">· {{ p.character }}</span>
+            </span>
+          </div>
+        </div>
+        <p v-if="!loadingCredits && credits.cast.length === 0 && credits.crew.length === 0" class="text-xs text-gray-400 dark:text-gray-500">未找到演职员信息</p>
       </div>
     </div>
 

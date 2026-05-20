@@ -157,6 +157,89 @@ export async function getTvShowSeasons(tvId) {
   return episodes
 }
 
+// 演职员信息
+export async function getMovieCredits(movieId) {
+  const { url, headers } = buildFetchOptions(
+    `${BASE_URL}/movie/${movieId}/credits?language=zh-CN`
+  )
+  try {
+    const res = await fetch(url, { headers })
+    if (!res.ok) return { cast: [], crew: [] }
+    const data = await res.json()
+    const profileSize = 'w185'
+    return {
+      cast: (data.cast || []).slice(0, 12).map(p => ({
+        name: p.name || '',
+        character: p.character || '',
+        profile: p.profile_path ? `https://image.tmdb.org/t/p/${profileSize}${p.profile_path}` : null,
+      })),
+      crew: (data.crew || [])
+        .filter(p => ['Director', 'Writer', 'Screenplay', 'Producer', 'Executive Producer'].includes(p.job))
+        .map(p => ({
+          name: p.name || '',
+          job: p.job || '',
+          profile: p.profile_path ? `https://image.tmdb.org/t/p/${profileSize}${p.profile_path}` : null,
+        })),
+    }
+  } catch {
+    return { cast: [], crew: [] }
+  }
+}
+
+export async function getTvCredits(tvId) {
+  const { url, headers } = buildFetchOptions(
+    `${BASE_URL}/tv/${tvId}/aggregate_credits?language=zh-CN`
+  )
+  try {
+    const res = await fetch(url, { headers })
+    if (!res.ok) return { cast: [], crew: [] }
+    const data = await res.json()
+    const profileSize = 'w185'
+    return {
+      cast: (data.cast || []).slice(0, 12).map(p => ({
+        name: p.name || '',
+        character: (p.roles || []).map(r => r.character).filter(Boolean).join(' / '),
+        profile: p.profile_path ? `https://image.tmdb.org/t/p/${profileSize}${p.profile_path}` : null,
+      })),
+      crew: (data.crew || [])
+        .filter(p => {
+          const jobs = (p.jobs || []).map(j => j.job)
+          return jobs.some(j => ['Director', 'Writer', 'Screenplay', 'Producer', 'Executive Producer', 'Creator'].includes(j))
+        })
+        .map(p => ({
+          name: p.name || '',
+          job: (p.jobs || []).map(j => j.job).filter(j => ['Director', 'Writer', 'Screenplay', 'Producer', 'Executive Producer', 'Creator'].includes(j))[0] || '',
+          profile: p.profile_path ? `https://image.tmdb.org/t/p/${profileSize}${p.profile_path}` : null,
+        })),
+    }
+  } catch {
+    return { cast: [], crew: [] }
+  }
+}
+
+export async function findShowCredits(name, category) {
+  if (!name) return { cast: [], crew: [] }
+  const { url, headers } = buildFetchOptions(
+    category === 'movie'
+      ? `${BASE_URL}/search/movie?query=${encodeURIComponent(name)}&language=zh-CN`
+      : `${BASE_URL}/search/tv?query=${encodeURIComponent(name)}&language=zh-CN`
+  )
+  try {
+    const res = await fetch(url, { headers })
+    if (!res.ok) return { cast: [], crew: [] }
+    const data = await res.json()
+    const first = data.results?.[0]
+    if (!first) return { cast: [], crew: [] }
+    if (category === 'movie') {
+      return getMovieCredits(first.id)
+    } else {
+      return getTvCredits(first.id)
+    }
+  } catch {
+    return { cast: [], crew: [] }
+  }
+}
+
 export async function findMoviePosterFallback(query) {
   try {
     const { url, headers } = buildFetchOptions(
