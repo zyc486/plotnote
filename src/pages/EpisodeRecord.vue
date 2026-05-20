@@ -8,7 +8,6 @@ import { debounce } from '../utils/debounce'
 import { saveDraft, clearDraft, loadDraft } from '../utils/draftCache'
 import { getTerminology } from '../utils/terminology'
 import ImageManager from '../components/ImageManager.vue'
-import TagSelector from '../components/TagSelector.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import { getUserId } from '../utils/helpers'
 
@@ -600,11 +599,6 @@ onBeforeRouteLeave(async (to, from, next) => {
       <!-- 主编辑区 -->
       <main class="flex-1 flex flex-col min-w-0">
         <div class="flex-1 flex flex-col p-4 md:p-8">
-          <!-- 标签 -->
-          <div class="mb-5">
-            <TagSelector v-model="tags" />
-          </div>
-
           <!-- 感想编辑器 -->
           <div class="flex-1 flex flex-col">
             <div class="flex items-center justify-between mb-3">
@@ -619,11 +613,11 @@ onBeforeRouteLeave(async (to, from, next) => {
               v-if="!showPreview"
               v-model="review"
               placeholder="写下你的想法..."
-              class="flex-1 min-h-[200px] w-full bg-white dark:bg-zinc-900 rounded-2xl px-5 py-4 outline-none resize-none border border-zinc-200/60 dark:border-zinc-800 text-sm md:text-base leading-relaxed text-zinc-800 dark:text-zinc-200 placeholder-zinc-300 dark:placeholder-zinc-600 focus:ring-2 focus:ring-amber-300 dark:focus:ring-amber-800 transition-shadow"
+              class="flex-1 min-h-[360px] w-full bg-white dark:bg-zinc-900 rounded-2xl px-5 py-4 outline-none resize-none border border-zinc-200/60 dark:border-zinc-800 text-sm md:text-base leading-relaxed text-zinc-800 dark:text-zinc-200 placeholder-zinc-300 dark:placeholder-zinc-600 focus:ring-2 focus:ring-amber-300 dark:focus:ring-amber-800 transition-shadow"
             ></textarea>
             <div
               v-else
-              class="flex-1 min-h-[200px] w-full bg-white dark:bg-zinc-900 rounded-2xl px-5 py-4 border border-zinc-200/60 dark:border-zinc-800 text-sm md:text-base leading-relaxed overflow-y-auto markdown-body text-zinc-800 dark:text-zinc-200"
+              class="flex-1 min-h-[360px] w-full bg-white dark:bg-zinc-900 rounded-2xl px-5 py-4 border border-zinc-200/60 dark:border-zinc-800 text-sm md:text-base leading-relaxed overflow-y-auto markdown-body text-zinc-800 dark:text-zinc-200"
               v-html="renderMarkdown(review || '*暂无感想*')"
             ></div>
             <p class="text-[10px] text-zinc-300 dark:text-zinc-600 mt-2">支持 Markdown · 停止输入后自动保存</p>
