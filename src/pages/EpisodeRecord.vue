@@ -416,241 +416,264 @@ onBeforeRouteLeave(async (to, from, next) => {
 </script>
 
 <template>
-  <div class="h-screen flex flex-col">
-    <div class="flex items-center justify-between px-4 md:px-6 py-3 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 flex-shrink-0">
-      <button @click="goBack" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-sm transition flex items-center gap-1">
-        <span>←</span>
-        <span>返回</span>
+  <div class="h-screen flex flex-col bg-zinc-50 dark:bg-zinc-950">
+    <!-- 顶栏 -->
+    <header class="flex items-center justify-between px-5 py-3 flex-shrink-0">
+      <button @click="goBack" class="flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        <span class="hidden sm:inline">返回</span>
       </button>
+
       <div v-if="show && episode" class="flex items-center gap-2 min-w-0">
-        <span class="font-semibold text-sm truncate">{{ show.name }}</span>
-        <span class="text-gray-400 dark:text-gray-500 text-sm whitespace-nowrap">{{ episodeLabel }}</span>
-        <span v-if="episodeRecords.length > 1" class="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap">
-          (第{{ watchCount(episode.id) }}次)
+        <span class="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate max-w-[200px]">{{ show.name }}</span>
+        <span class="text-xs text-zinc-400 dark:text-zinc-500">·</span>
+        <span class="text-xs text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{{ episodeLabel }}</span>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <button @click="showSidebarMobile = !showSidebarMobile" class="md:hidden text-xs text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors">
+          {{ showSidebarMobile ? '收起' : '面板' }}
+        </button>
+        <span class="flex items-center gap-1.5 text-xs text-zinc-400 dark:text-zinc-500">
+          <span class="w-1.5 h-1.5 rounded-full" :class="dirty ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'"></span>
+          {{ dirty ? '未保存' : '已保存' }}
         </span>
       </div>
-      <div class="flex items-center gap-2 md:gap-3 flex-shrink-0">
-          <button @click="showSidebarMobile = !showSidebarMobile" class="md:hidden text-xs px-2 py-1 rounded transition" :class="showSidebarMobile ? 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400' : 'text-gray-500 dark:text-gray-400'">
-            {{ showSidebarMobile ? '收起面板' : '评分面板' }}
-          </button>
-          <span v-if="dirty" class="text-xs text-amber-400">未保存</span>
-          <span v-else class="text-xs text-emerald-400">已保存</span>
-        </div>
-    </div>
+    </header>
 
+    <!-- 主区域 -->
     <div v-if="loaded" class="flex flex-col md:flex-row flex-1 min-h-0">
-      <div class="w-full md:w-72 flex-shrink-0 border-b md:border-b-0 md:border-r border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 flex flex-col overflow-y-auto" :class="showSidebarMobile ? 'max-h-[50vh]' : 'hidden md:flex'">
-        <div class="p-4 border-b border-gray-200 dark:border-gray-800">
-          <label class="block text-xs text-gray-500 dark:text-gray-400 mb-2">评分</label>
-          <div
-            class="text-4xl font-bold text-amber-400 text-center mb-3 transition-transform duration-300"
-            :class="{ 'scale-110': ratingAnimation }"
-          >
-            {{ Number(rating).toFixed(1) }}
+      <!-- 侧边栏 -->
+      <aside class="w-full md:w-72 flex-shrink-0 border-t md:border-t-0 md:border-r border-zinc-200/60 dark:border-zinc-800 overflow-y-auto" :class="showSidebarMobile ? 'block' : 'hidden md:block'">
+        <div class="p-4 space-y-4">
+
+          <!-- 评分卡片 -->
+          <div class="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-200/60 dark:border-zinc-800">
+            <div class="text-center mb-4">
+              <span
+                class="inline-block text-5xl font-bold tracking-tight transition-all duration-300"
+                :class="rating > 0 ? 'text-amber-500' : 'text-zinc-300 dark:text-zinc-600'"
+                :style="{ transform: ratingAnimation ? 'scale(1.15)' : 'scale(1)' }"
+              >{{ Number(rating).toFixed(1) }}</span>
+              <p class="text-[11px] text-zinc-400 dark:text-zinc-500 mt-1">/ 10</p>
+            </div>
+
+            <!-- 星标快捷评分 -->
+            <div class="flex justify-center gap-1 mb-4">
+              <button
+                v-for="star in 5" :key="star"
+                @click="rating = star * 2"
+                class="text-2xl transition-all duration-150 hover:scale-110"
+                :class="rating >= star * 2 ? 'text-amber-400' : 'text-zinc-200 dark:text-zinc-700'"
+              >★</button>
+            </div>
+
+            <!-- 精度滑块 -->
+            <div class="relative">
+              <input
+                v-model.number="rating"
+                type="range" min="0" max="10" step="0.1"
+                class="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+                :class="rating > 0 ? 'accent-amber-400' : 'accent-zinc-300 dark:accent-zinc-600'"
+              />
+            </div>
+
+            <!-- 快捷分档 + 数字输入 -->
+            <div class="flex items-center justify-between gap-1 mt-3">
+              <button
+                v-for="n in [0,2,4,6,8,10]" :key="n"
+                @click="rating = n"
+                class="w-8 h-6 rounded-md text-[10px] font-medium transition-colors"
+                :class="rating === n ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 dark:text-zinc-500'"
+              >{{ n }}</button>
+              <input
+                :value="rating"
+                @input="rating = Number($event.target.value)"
+                type="number" min="0" max="10" step="0.1"
+                class="w-14 text-center bg-transparent text-sm font-bold outline-none border-b-2 transition-colors"
+                :class="rating > 0 ? 'text-amber-500 border-amber-300' : 'text-zinc-400 border-zinc-200 dark:border-zinc-700'"
+              />
+            </div>
           </div>
-          <input
-            v-model.number="rating"
-            type="range"
-            min="0"
-            max="10"
-            step="0.1"
-            class="w-full accent-indigo-500"
-          />
-          <div class="flex justify-between text-[10px] text-gray-400 dark:text-gray-500 mt-1">
-            <span>0</span>
+
+          <!-- 外部评分 -->
+          <div v-if="externalRatings" class="bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-200/60 dark:border-zinc-800 space-y-2">
+            <p class="text-[11px] text-zinc-400 dark:text-zinc-500 uppercase tracking-wider font-medium">外部评分</p>
+            <div v-if="externalRatings.imdbRating" class="flex items-center justify-between text-sm">
+              <span class="text-zinc-600 dark:text-zinc-400">IMDb</span>
+              <span class="font-semibold text-yellow-600 dark:text-yellow-500">{{ externalRatings.imdbRating }}/10</span>
+            </div>
+            <div v-if="externalRatings.rtRating" class="flex items-center justify-between text-sm">
+              <span class="text-zinc-600 dark:text-zinc-400">烂番茄</span>
+              <span class="font-semibold text-red-500">{{ externalRatings.rtRating }}</span>
+            </div>
+            <div v-if="externalRatings.metacritic" class="flex items-center justify-between text-sm">
+              <span class="text-zinc-600 dark:text-zinc-400">Metacritic</span>
+              <span class="font-semibold text-blue-500">{{ externalRatings.metacritic }}</span>
+            </div>
+          </div>
+
+          <!-- 观看日期 -->
+          <div class="bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-200/60 dark:border-zinc-800">
+            <p class="text-[11px] text-zinc-400 dark:text-zinc-500 uppercase tracking-wider font-medium mb-2">观看日期</p>
             <input
-              :value="rating"
-              @input="rating = Number($event.target.value)"
-              type="number"
-              min="0"
-              max="10"
-              step="0.1"
-              class="w-16 text-center bg-gray-200 dark:bg-gray-700 rounded px-1 py-0.5 text-xs font-bold text-amber-400 outline-none focus:ring-1 focus:ring-indigo-500"
+              v-model="watchedDate"
+              type="date"
+              class="w-full bg-zinc-50 dark:bg-zinc-800 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-300 dark:focus:ring-amber-700 border border-zinc-200/60 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300"
             />
-            <span>10</span>
-          </div>
-        </div>
-
-        <div v-if="externalRatings" class="p-4 border-b border-gray-200 dark:border-gray-800">
-          <label class="block text-xs text-gray-500 dark:text-gray-400 mb-2">外部评分</label>
-          <div class="space-y-1.5">
-            <div v-if="externalRatings.imdbRating" class="flex items-center justify-between">
-              <span class="text-xs text-yellow-600 dark:text-yellow-400 font-medium">IMDb</span>
-              <span class="text-sm font-bold text-yellow-500">{{ externalRatings.imdbRating }}/10</span>
-            </div>
-            <div v-if="externalRatings.rtRating" class="flex items-center justify-between">
-              <span class="text-xs text-red-500 font-medium">烂番茄</span>
-              <span class="text-sm font-bold text-red-400">{{ externalRatings.rtRating }}</span>
-            </div>
-            <div v-if="externalRatings.metacritic" class="flex items-center justify-between">
-              <span class="text-xs text-blue-500 font-medium">Metacritic</span>
-              <span class="text-sm font-bold text-blue-400">{{ externalRatings.metacritic }}</span>
-            </div>
-          </div>
-        </div>
-        <div v-else-if="loadingRatings" class="p-4 border-b border-gray-200 dark:border-gray-800">
-          <p class="text-xs text-gray-400 dark:text-gray-500">加载外部评分...</p>
-        </div>
-
-        <div class="p-4 border-b border-gray-200 dark:border-gray-800">
-          <label class="block text-xs text-gray-500 dark:text-gray-400 mb-2">观看日期</label>
-          <input
-            v-model="watchedDate"
-            type="date"
-            class="w-full bg-gray-200 dark:bg-gray-700 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-        </div>
-
-        <div class="p-4 flex-1">
-          <div class="flex items-center justify-between mb-2">
-            <label class="text-xs text-gray-500 dark:text-gray-400">多刷记录</label>
-            <button
-              @click="createNewRecord"
-              class="text-[10px] text-indigo-500 hover:text-indigo-400 dark:text-indigo-400 dark:hover:text-indigo-300 transition"
-            >
-              + 新建
-            </button>
           </div>
 
-          <div v-if="episodeRecords.length > 0" class="space-y-1.5">
-            <div
-              v-for="(record, index) in episodeRecords"
-              :key="record.id"
-              class="rounded-lg px-3 py-2 cursor-pointer transition text-sm"
-              :class="record.id === currentRecordId ? 'bg-indigo-100 dark:bg-indigo-600/20 border border-indigo-300 dark:border-indigo-500/30' : 'bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600'"
-            >
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                  <span class="text-xs font-medium">第{{ episodeRecords.length - index }}次</span>
-                  <span v-if="record.id === episode?.activeRecordId" class="text-[10px] bg-gray-800 text-gray-100 dark:bg-indigo-600 dark:text-indigo-100 px-1.5 py-0.5 rounded-full">主</span>
-                </div>
-                <span v-if="record.rating > 0" class="text-sm font-bold text-amber-400">{{ Number(record.rating).toFixed(1) }}</span>
-                <span v-else class="text-[10px] text-gray-400">—</span>
-              </div>
-              <div class="flex items-center justify-between mt-1">
-                <span class="text-[10px] text-gray-400 dark:text-gray-500">{{ record.watchedDate || formatDate(record.createdAt) }}</span>
-                <div class="flex gap-1">
-                  <button
-                    v-if="record.id !== episode?.activeRecordId"
-                    @click.stop="switchActiveRecord(record.id)"
-                    class="text-[10px] text-indigo-500 hover:text-indigo-400 px-1 rounded transition"
-                  >主</button>
-                  <button
-                    v-if="record.id !== currentRecordId"
-                    @click.stop="deleteRecord(record.id)"
-                    class="text-[10px] text-red-400 hover:text-red-300 px-1 rounded transition"
-                  >删</button>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div v-else class="text-[10px] text-gray-400 dark:text-gray-500 text-center py-4">
-            评分后自动创建
-          </div>
-        </div>
-      </div>
-
-      <div class="flex-1 flex flex-col min-w-0">
-        <div class="flex-1 flex flex-col p-3 md:p-6 overflow-y-auto">
-          <div class="flex-1 flex flex-col">
+          <!-- 多刷记录 -->
+          <div class="bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-200/60 dark:border-zinc-800">
             <div class="flex items-center justify-between mb-3">
-              <label class="block text-sm text-gray-500 dark:text-gray-400">感想</label>
-              <div class="flex items-center gap-1">
-                <button @click="showPreview = false" class="px-2 py-0.5 text-xs rounded transition" :class="!showPreview ? 'bg-gray-800 text-white dark:bg-indigo-600' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'">编辑</button>
-                <button @click="showPreview = true" class="px-2 py-0.5 text-xs rounded transition" :class="showPreview ? 'bg-gray-800 text-white dark:bg-indigo-600' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'">预览</button>
+              <p class="text-[11px] text-zinc-400 dark:text-zinc-500 uppercase tracking-wider font-medium">多刷记录</p>
+              <button @click="createNewRecord" class="text-xs text-amber-500 hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300 transition-colors font-medium">+ 新建</button>
+            </div>
+            <div v-if="episodeRecords.length > 0" class="space-y-1.5">
+              <div
+                v-for="(record, index) in episodeRecords" :key="record.id"
+                @click="record.id !== currentRecordId && switchActiveRecord(record.id)"
+                class="group rounded-xl px-3 py-2.5 cursor-pointer transition-all duration-200"
+                :class="record.id === currentRecordId ? 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800' : 'hover:bg-zinc-50 dark:hover:bg-zinc-800 border border-transparent'"
+              >
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs font-medium text-zinc-700 dark:text-zinc-300">第{{ episodeRecords.length - index }}次</span>
+                    <span v-if="record.id === episode?.activeRecordId" class="text-[10px] bg-amber-400/20 text-amber-600 dark:text-amber-400 px-1.5 py-px rounded-full font-medium">主</span>
+                  </div>
+                  <span v-if="record.rating > 0" class="text-sm font-bold text-amber-500">{{ Number(record.rating).toFixed(1) }}</span>
+                  <span v-else class="text-xs text-zinc-300 dark:text-zinc-600">—</span>
+                </div>
+                <div class="flex items-center justify-between mt-1">
+                  <span class="text-[10px] text-zinc-400 dark:text-zinc-500">{{ record.watchedDate || formatDate(record.createdAt) }}</span>
+                  <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      v-if="record.id !== currentRecordId"
+                      @click.stop="deleteRecord(record.id)"
+                      class="text-[10px] text-red-400 hover:text-red-500 px-1 transition-colors"
+                    >删除</button>
+                  </div>
+                </div>
               </div>
             </div>
-            <textarea
-              v-if="!showPreview"
-              v-model="review"
-              placeholder="写下你的感想..."
-              class="flex-1 min-h-[150px] md:min-h-[200px] w-full bg-white dark:bg-gray-800 rounded-xl px-4 md:px-5 py-3 md:py-4 outline-none focus:ring-2 focus:ring-indigo-500 resize-none border border-gray-200 dark:border-gray-700 text-sm leading-relaxed"
-            ></textarea>
-            <div
-              v-else
-              class="flex-1 min-h-[150px] md:min-h-[200px] w-full bg-white dark:bg-gray-800 rounded-xl px-4 md:px-5 py-3 md:py-4 border border-gray-200 dark:border-gray-700 text-sm leading-relaxed overflow-y-auto markdown-body"
-              v-html="renderMarkdown(review || '*暂无感想*')"
-            ></div>
-            <p class="text-[10px] text-gray-400 dark:text-gray-500 mt-1.5">支持 Markdown 语法，停止输入 500ms 后自动保存</p>
+            <p v-else class="text-xs text-zinc-400 dark:text-zinc-500 text-center py-4">评分后自动创建</p>
           </div>
+        </div>
+      </aside>
 
-          <div class="mt-4">
+      <!-- 主编辑区 -->
+      <main class="flex-1 flex flex-col min-w-0 overflow-y-auto">
+        <div class="flex-1 flex flex-col p-4 md:p-8 max-w-3xl">
+          <!-- 标签 -->
+          <div class="mb-5">
             <TagSelector v-model="tags" />
           </div>
 
-          <div class="mt-4">
+          <!-- 感想编辑器 -->
+          <div class="flex-1 flex flex-col">
+            <div class="flex items-center justify-between mb-3">
+              <label class="text-xs text-zinc-400 dark:text-zinc-500 uppercase tracking-wider font-medium">感想</label>
+              <div class="flex items-center gap-0.5 bg-zinc-100 dark:bg-zinc-800 rounded-lg p-0.5">
+                <button @click="showPreview = false" class="px-3 py-1 text-xs rounded-md font-medium transition-colors" :class="!showPreview ? 'bg-white dark:bg-zinc-700 text-zinc-800 dark:text-zinc-200 shadow-sm' : 'text-zinc-500 dark:text-zinc-400'">编辑</button>
+                <button @click="showPreview = true" class="px-3 py-1 text-xs rounded-md font-medium transition-colors" :class="showPreview ? 'bg-white dark:bg-zinc-700 text-zinc-800 dark:text-zinc-200 shadow-sm' : 'text-zinc-500 dark:text-zinc-400'">预览</button>
+              </div>
+            </div>
+
+            <textarea
+              v-if="!showPreview"
+              v-model="review"
+              placeholder="写下你的想法..."
+              class="flex-1 min-h-[200px] md:min-h-[280px] w-full bg-white dark:bg-zinc-900 rounded-2xl px-5 py-4 outline-none resize-none border border-zinc-200/60 dark:border-zinc-800 text-sm md:text-base leading-relaxed text-zinc-800 dark:text-zinc-200 placeholder-zinc-300 dark:placeholder-zinc-600 focus:ring-2 focus:ring-amber-300 dark:focus:ring-amber-800 transition-shadow"
+            ></textarea>
+            <div
+              v-else
+              class="flex-1 min-h-[200px] md:min-h-[280px] w-full bg-white dark:bg-zinc-900 rounded-2xl px-5 py-4 border border-zinc-200/60 dark:border-zinc-800 text-sm md:text-base leading-relaxed overflow-y-auto markdown-body text-zinc-800 dark:text-zinc-200"
+              v-html="renderMarkdown(review || '*暂无感想*')"
+            ></div>
+            <p class="text-[10px] text-zinc-300 dark:text-zinc-600 mt-2">支持 Markdown · 停止输入后自动保存</p>
+          </div>
+
+          <!-- 图片 -->
+          <div class="mt-6">
             <ImageManager v-model="images" />
           </div>
         </div>
+      </main>
+    </div>
+
+    <!-- 加载状态 -->
+    <div v-else class="flex-1 flex items-center justify-center">
+      <div class="flex items-center gap-2 text-zinc-400 dark:text-zinc-500">
+        <div class="w-2 h-2 rounded-full bg-zinc-300 dark:bg-zinc-600 animate-bounce" style="animation-delay: 0ms"></div>
+        <div class="w-2 h-2 rounded-full bg-zinc-300 dark:bg-zinc-600 animate-bounce" style="animation-delay: 150ms"></div>
+        <div class="w-2 h-2 rounded-full bg-zinc-300 dark:bg-zinc-600 animate-bounce" style="animation-delay: 300ms"></div>
       </div>
     </div>
 
-    <div v-else class="flex-1 flex items-center justify-center text-gray-400 dark:text-gray-500">加载中...</div>
-
-    <div class="flex-shrink-0 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-2 md:p-3">
-      <div class="max-w-4xl mx-auto flex items-center justify-between gap-2">
+    <!-- 底部导航 -->
+    <footer class="flex-shrink-0 border-t border-zinc-200/60 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md px-4 py-2.5">
+      <div class="max-w-3xl mx-auto flex items-center justify-between">
         <button
           :disabled="!prevEpisode"
           @click="jumpToEpisode(prevEpisode)"
-          class="px-2 md:px-3 py-1.5 rounded-lg text-xs md:text-sm transition"
-          :class="prevEpisode ? 'bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200' : 'bg-gray-100 text-gray-300 dark:bg-gray-800/50 dark:text-gray-600 cursor-not-allowed'"
+          class="flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-medium transition-all"
+          :class="prevEpisode ? 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 active:scale-95' : 'text-zinc-300 dark:text-zinc-700 cursor-not-allowed'"
         >
-          ← 上一{{ epTerm }}
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+          上一{{ epTerm }}
         </button>
 
         <button
           @click="openPicker"
-          class="text-xs md:text-sm text-gray-500 hover:text-indigo-500 dark:text-gray-400 dark:hover:text-indigo-400 transition px-2 md:px-3 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 truncate max-w-[40%]"
+          class="text-xs text-zinc-500 dark:text-zinc-400 hover:text-amber-500 dark:hover:text-amber-400 transition-colors px-4 py-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800"
         >
-          {{ episodeLabel }} ▾
+          第 {{ episode?.episode }} {{ epTerm }}
         </button>
 
         <button
           :disabled="!nextEpisode"
           @click="jumpToEpisode(nextEpisode)"
-          class="px-2 md:px-3 py-1.5 rounded-lg text-xs md:text-sm transition"
-          :class="nextEpisode ? 'bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200' : 'bg-gray-100 text-gray-300 dark:bg-gray-800/50 dark:text-gray-600 cursor-not-allowed'"
+          class="flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-medium transition-all"
+          :class="nextEpisode ? 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 active:scale-95' : 'text-zinc-300 dark:text-zinc-700 cursor-not-allowed'"
         >
-          下一{{ epTerm }} →
+          下一{{ epTerm }}
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
         </button>
       </div>
-    </div>
+    </footer>
 
+    <!-- 集数选择弹窗 -->
     <div
       v-if="showPicker"
-      class="fixed inset-0 bg-black/60 flex items-end justify-center z-50"
+      class="fixed inset-0 bg-black/50 flex items-end justify-center z-50"
       @click.self="showPicker = false"
     >
-      <div class="bg-white dark:bg-gray-800 rounded-t-2xl w-full max-w-lg max-h-[70vh] flex flex-col border-t border-gray-200 dark:border-gray-700">
-        <div class="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700">
-          <h3 class="font-medium">快速跳转</h3>
-          <button @click="showPicker = false" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition">✕</button>
+      <div class="bg-white dark:bg-zinc-900 rounded-t-2xl w-full max-w-lg max-h-[70vh] flex flex-col animate-slide-up">
+        <div class="flex items-center justify-between px-5 py-4 border-b border-zinc-200/60 dark:border-zinc-800">
+          <h3 class="font-medium text-zinc-800 dark:text-zinc-200">快速跳转</h3>
+          <button @click="showPicker = false" class="w-7 h-7 rounded-full flex items-center justify-center text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">✕</button>
         </div>
-
-        <div class="px-5 py-3 border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
-          <div class="flex items-center gap-2">
+        <div class="px-5 py-3 border-b border-zinc-200/60 dark:border-zinc-800 overflow-x-auto">
+          <div class="flex items-center gap-1.5">
             <button
-              v-for="s in availableSeasons"
-              :key="s"
+              v-for="s in availableSeasons" :key="s"
               @click="pickerSeason = s"
-              class="px-3 py-1.5 text-xs rounded-full transition whitespace-nowrap"
-              :class="pickerSeason === s ? 'bg-gray-800 text-white dark:bg-indigo-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'"
+              class="px-3 py-1.5 text-xs rounded-lg transition-colors font-medium whitespace-nowrap"
+              :class="pickerSeason === s ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 dark:text-zinc-400'"
             >
               第{{ s }}{{ seasonLabel }}
             </button>
           </div>
         </div>
-
         <div class="flex-1 overflow-y-auto p-4">
           <div class="grid grid-cols-5 gap-2">
             <button
-              v-for="ep in episodesInPickerSeason"
-              :key="ep.id"
+              v-for="ep in episodesInPickerSeason" :key="ep.id"
               @click="selectEpisode(ep)"
-              class="py-2.5 rounded-lg text-sm font-medium transition text-center"
+              class="py-3 rounded-xl text-sm font-medium transition-all active:scale-95"
               :class="ep.id === episode?.id
-                ? 'bg-gray-800 text-white dark:bg-indigo-600'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700/50 dark:text-gray-400 dark:hover:bg-gray-700'"
+                ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 shadow-sm'
+                : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'"
             >
               {{ ep.episode }}
             </button>
@@ -670,3 +693,18 @@ onBeforeRouteLeave(async (to, from, next) => {
     />
   </div>
 </template>
+
+<style scoped>
+@keyframes slide-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.animate-slide-up {
+  animation: slide-up 0.25s ease-out;
+}
+
+textarea::placeholder {
+  color: inherit;
+  opacity: 0.4;
+}
+</style>
