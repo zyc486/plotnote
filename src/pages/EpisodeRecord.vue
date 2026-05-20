@@ -10,6 +10,8 @@ import { getTerminology } from '../utils/terminology'
 import ImageManager from '../components/ImageManager.vue'
 import TagSelector from '../components/TagSelector.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import { getUserId } from '../utils/helpers'
+
 import { renderMarkdown } from '../utils/markdown'
 
 import { getRatingsByTitle, hasOmdbKey } from '../utils/omdb'
@@ -231,7 +233,7 @@ function watchCount(episodeId) {
 
 async function fetchEpisodeScores() {
   if (!show.value) return
-  const userId = (await supabase.auth.getUser()).data?.user?.id
+  const userId = await getUserId()
   if (!userId) return
   const episodeIds = episodesStore.episodes.map(e => e.id)
   if (!episodeIds.length) { episodeScores.value = {}; return }
@@ -335,8 +337,6 @@ async function initPage() {
     }
   } catch (e) {
     console.error('initPage failed:', e)
-    router.push('/')
-    return
   } finally {
     loaded.value = true
   }
