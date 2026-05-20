@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, watch, computed, nextTick, onMounted, onUnmounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import { useRecordsStore } from '../stores/records'
 import { useEpisodesStore } from '../stores/episodes'
@@ -10,9 +10,12 @@ import { getTerminology } from '../utils/terminology'
 import ImageManager from '../components/ImageManager.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import { getUserId } from '../utils/helpers'
-
 import { renderMarkdown } from '../utils/markdown'
-
+import { useEditor, EditorContent } from '@tiptap/vue-3'
+import StarterKit from '@tiptap/starter-kit'
+import Underline from '@tiptap/extension-underline'
+import Link from '@tiptap/extension-link'
+import Placeholder from '@tiptap/extension-placeholder'
 import { getRatingsByTitle, hasOmdbKey } from '../utils/omdb'
 
 const props = defineProps(['toast'])
@@ -23,7 +26,6 @@ const router = useRouter()
 const episode = ref(null)
 const show = ref(null)
 const rating = ref(0)
-const review = ref('')
 const images = ref([])
 const tags = ref([])
 const watchedDate = ref('')
@@ -32,11 +34,10 @@ const dirty = ref(false)
 const currentRecordId = ref(null)
 const episodeRecords = ref([])
 const ratingAnimation = ref(false)
-const showPreview = ref(false)
 const confirmDialog = ref({ visible: false, title: '', message: '', onConfirm: null })
 const externalRatings = ref(null)
 const loadingRatings = ref(false)
-const textareaRef = ref(null)
+const editorContent = ref('')
 
 const recordsStore = useRecordsStore()
 const episodesStore = useEpisodesStore()
@@ -69,6 +70,24 @@ const availableSeasons = computed(() => {
   return [...seasons].sort((a, b) => a - b)
 })
 
+const editor = useEditor({
+  content: '',
+  extensions: [
+    StarterKit.configure({ heading: { levels: [1, 2] } }),
+    Underline,
+    Link.configure({ openOnClick: false }),
+    Placeholder.configure({ placeholder: '写下你的想法...' }),
+  ],
+  editorProps: {
+    attributes: {
+      class: 'flex-1 min-h-[360px] w-full bg-white dark:bg-zinc-900 rounded-2xl px-5 py-4 border border-zinc-200/60 dark:border-zinc-800 text-sm md:text-base leading-relaxed text-zinc-800 dark:text-zinc-200 outline-none focus:ring-2 focus:ring-amber-300 dark:focus:ring-amber-800 transition-shadow overflow-y-auto prose prose-zinc dark:prose-invert prose-sm max-w-none',
+    },
+  },
+  onUpdate: () => {
+    dirty.value = true
+  },
+})
+
 let skipWatchers = false
 
 function parseJsonSafe(str) {
@@ -80,7 +99,7 @@ async function forceSave() {
   try {
     await recordsStore.updateRecord(currentRecordId.value, {
       rating: rating.value,
-      review: review.value,
+      review: getReviewHTML(),
       images: images.value,
       tags: tags.value,
       watchedDate: watchedDate.value || null,
@@ -95,7 +114,7 @@ function saveToDraft() {
   if (!episode.value) return
   saveDraft(episode.value.id, {
     rating: rating.value,
-    review: review.value,
+    review: getReviewHTML(),
     images: images.value,
     tags: tags.value,
     watchedDate: watchedDate.value,
@@ -106,7 +125,7 @@ async function ensureRecordExists() {
   if (!episode.value || !loaded.value) return
   if (!currentRecordId.value) {
     const id = await recordsStore.createRecord(
-      episode.value.id, rating.value, review.value, images.value, tags.value, watchedDate.value
+      episode.value.id, rating.value, getReviewHTML(), images.value, tags.value, watchedDate.value
     )
     currentRecordId.value = id
     await loadEpisodeRecords()
@@ -282,7 +301,7 @@ async function initPage() {
 
     currentRecordId.value = null
     rating.value = 0
-    review.value = ''
+    editor.value?.commands.setContent('')
     images.value = []
     tags.value = []
     watchedDate.value = new Date().toISOString().split('T')[0]
@@ -293,7 +312,7 @@ async function initPage() {
     if (activeRecord) {
       currentRecordId.value = activeRecord.id
       rating.value = activeRecord.rating ?? 0
-      review.value = activeRecord.review ?? ''
+      setEditorContent(activeRecord.review ?? '')
       images.value = parseJsonSafe(activeRecord.images)
       tags.value = parseJsonSafe(activeRecord.tags)
       watchedDate.value = activeRecord.watchedDate || new Date().toISOString().split('T')[0]
@@ -301,7 +320,7 @@ async function initPage() {
       const draft = loadDraft(episodeId)
       if (draft) {
         rating.value = draft.rating ?? 0
-        review.value = draft.review ?? ''
+        setEditorContent(draft.review ?? '')
         images.value = draft.images ?? []
         tags.value = draft.tags ?? []
         if (draft.watchedDate) watchedDate.value = draft.watchedDate
@@ -324,8 +343,8 @@ async function initPage() {
     skipWatchers = false
 
     const textarea = document.querySelector('textarea')
-    if (textarea && !review.value) {
-      textarea.focus()
+    if (editor.value && !editor.value.getText().trim()) {
+      editor.value.commands.focus()
     }
   } catch (e) {
     console.error('initPage failed:', e)
@@ -342,7 +361,7 @@ async function createNewRecord() {
   const id = await recordsStore.createRecord(episode.value.id, 0, '', [], [])
   currentRecordId.value = id
   rating.value = 0
-  review.value = ''
+  editor.value?.commands.setContent('')
   images.value = []
   tags.value = []
   dirty.value = false
@@ -363,7 +382,7 @@ async function switchActiveRecord(recordId) {
   if (record) {
     skipWatchers = true
     rating.value = record.rating ?? 0
-    review.value = record.review ?? ''
+    setEditorContent(record.review ?? '')
     images.value = parseJsonSafe(record.images)
     tags.value = parseJsonSafe(record.tags)
     watchedDate.value = record.watchedDate || new Date().toISOString().split('T')[0]
@@ -389,7 +408,7 @@ async function deleteRecord(recordId) {
         } else {
           skipWatchers = true
           rating.value = 0
-          review.value = ''
+          editor.value?.commands.setContent('')
           images.value = []
           tags.value = []
           watchedDate.value = new Date().toISOString().split('T')[0]
@@ -421,37 +440,30 @@ function selectEpisode(ep) {
   jumpToEpisode(ep)
 }
 
-function insertFmt(prefix, suffix = '') {
-  const ta = textareaRef.value
-  if (!ta || showPreview.value) return
-  const start = ta.selectionStart
-  const end = ta.selectionEnd
-  const before = review.value.slice(0, start)
-  const selected = review.value.slice(start, end)
-  const after = review.value.slice(end)
-  review.value = before + prefix + selected + suffix + after
-  dirty.value = true
-  nextTick(() => {
-    ta.focus()
-    const newCursor = start + prefix.length + selected.length + suffix.length
-    ta.setSelectionRange(newCursor, newCursor)
-  })
+function getReviewHTML() {
+  return editor.value?.getHTML() || ''
 }
 
-function insertLine(prefix) {
-  const ta = textareaRef.value
-  if (!ta || showPreview.value) return
-  const start = ta.selectionStart
-  const before = review.value.slice(0, start)
-  const after = review.value.slice(start)
-  const needsNewline = before.length > 0 && !before.endsWith('\n')
-  review.value = before + (needsNewline ? '\n' : '') + prefix + after
-  dirty.value = true
-  nextTick(() => {
-    ta.focus()
-    const newPos = start + prefix.length + (needsNewline ? 1 : 0)
-    ta.setSelectionRange(newPos, newPos)
-  })
+function setLink() {
+  const previousUrl = editor.value?.getAttributes('link').href || ''
+  const url = window.prompt('链接地址', previousUrl)
+  if (url === null) return
+  if (url === '') {
+    editor.value?.chain().focus().extendMarkRange('link').unsetLink().run()
+    return
+  }
+  editor.value?.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
+}
+
+function setEditorContent(content) {
+  const text = content || ''
+  if (!text) { editor.value?.commands.setContent(''); return }
+  // 旧数据是 Markdown，转换为 HTML；新数据是 HTML
+  if (/<\/?[a-z][\s\S]*>/i.test(text)) {
+    editor.value?.commands.setContent(text)
+  } else {
+    editor.value?.commands.setContent(renderMarkdown(text))
+  }
 }
 
 function formatDate(ts) {
@@ -471,9 +483,12 @@ onMounted(() => {
   window.addEventListener('beforeunload', handleBeforeUnload)
 })
 
+onBeforeUnmount(() => {
+  editor.value?.destroy()
+})
+
 onUnmounted(() => {
   window.removeEventListener('beforeunload', handleBeforeUnload)
-  // 先保存草稿（同步操作），forceSave 在路由守卫中已处理
   saveToDraft()
 })
 
@@ -634,44 +649,30 @@ onBeforeRouteLeave(async (to, from, next) => {
       <main class="flex-1 flex flex-col min-w-0">
         <div class="flex-1 flex flex-col p-4 md:p-8">
           <!-- 感想编辑器 -->
-          <div class="flex-1 flex flex-col">
-            <div class="flex items-center justify-between mb-3">
+          <div class="flex-1 flex flex-col" v-if="editor">
+            <div class="flex items-center justify-between mb-2">
               <label class="text-xs text-zinc-400 dark:text-zinc-500 uppercase tracking-wider font-medium">感想</label>
-              <div class="flex items-center gap-0.5 bg-zinc-100 dark:bg-zinc-800 rounded-lg p-0.5">
-                <button @click="showPreview = false" class="px-3 py-1 text-xs rounded-md font-medium transition-colors" :class="!showPreview ? 'bg-white dark:bg-zinc-700 text-zinc-800 dark:text-zinc-200 shadow-sm' : 'text-zinc-500 dark:text-zinc-400'">编辑</button>
-                <button @click="showPreview = true" class="px-3 py-1 text-xs rounded-md font-medium transition-colors" :class="showPreview ? 'bg-white dark:bg-zinc-700 text-zinc-800 dark:text-zinc-200 shadow-sm' : 'text-zinc-500 dark:text-zinc-400'">预览</button>
-              </div>
             </div>
 
             <!-- 格式工具栏 -->
-            <div v-if="!showPreview" class="flex items-center gap-0.5 mb-2 flex-wrap">
-              <button @click="insertFmt('**', '**')" title="加粗" class="w-7 h-7 flex items-center justify-center rounded-md text-xs font-bold text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">B</button>
-              <button @click="insertFmt('*', '*')" title="斜体" class="w-7 h-7 flex items-center justify-center rounded-md text-xs italic text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors font-serif">I</button>
-              <button @click="insertFmt('~~', '~~')" title="删除线" class="w-7 h-7 flex items-center justify-center rounded-md text-xs line-through text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">S</button>
+            <div class="flex items-center gap-0.5 mb-2 flex-wrap">
+              <button @click="editor.chain().focus().toggleBold().run()" title="加粗" :class="editor.isActive('bold') ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'" class="w-7 h-7 flex items-center justify-center rounded-md text-xs font-bold transition-colors">B</button>
+              <button @click="editor.chain().focus().toggleItalic().run()" title="斜体" :class="editor.isActive('italic') ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'" class="w-7 h-7 flex items-center justify-center rounded-md text-xs italic transition-colors font-serif">I</button>
+              <button @click="editor.chain().focus().toggleUnderline().run()" title="下划线" :class="editor.isActive('underline') ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'" class="w-7 h-7 flex items-center justify-center rounded-md text-xs underline transition-colors">U</button>
+              <button @click="editor.chain().focus().toggleStrike().run()" title="删除线" :class="editor.isActive('strike') ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'" class="w-7 h-7 flex items-center justify-center rounded-md text-xs line-through transition-colors">S</button>
               <span class="w-px h-4 bg-zinc-200 dark:bg-zinc-700 mx-0.5"></span>
-              <button @click="insertLine('# ')" title="标题1" class="w-7 h-7 flex items-center justify-center rounded-md text-xs font-bold text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">H₁</button>
-              <button @click="insertLine('## ')" title="标题2" class="w-7 h-7 flex items-center justify-center rounded-md text-xs font-bold text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">H₂</button>
+              <button @click="editor.chain().focus().toggleHeading({ level: 1 }).run()" title="标题1" :class="editor.isActive('heading', { level: 1 }) ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'" class="w-7 h-7 flex items-center justify-center rounded-md text-xs font-bold transition-colors">H₁</button>
+              <button @click="editor.chain().focus().toggleHeading({ level: 2 }).run()" title="标题2" :class="editor.isActive('heading', { level: 2 }) ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'" class="w-7 h-7 flex items-center justify-center rounded-md text-xs font-bold transition-colors">H₂</button>
               <span class="w-px h-4 bg-zinc-200 dark:bg-zinc-700 mx-0.5"></span>
-              <button @click="insertLine('> ')" title="引用" class="w-7 h-7 flex items-center justify-center rounded-md text-xs text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">❝</button>
-              <button @click="insertLine('- ')" title="列表" class="w-7 h-7 flex items-center justify-center rounded-md text-xs text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">≡</button>
-              <button @click="insertLine('---')" title="分割线" class="w-7 h-7 flex items-center justify-center rounded-md text-xs text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">—</button>
+              <button @click="editor.chain().focus().toggleBlockquote().run()" title="引用" :class="editor.isActive('blockquote') ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'" class="w-7 h-7 flex items-center justify-center rounded-md text-xs transition-colors">❝</button>
+              <button @click="editor.chain().focus().toggleBulletList().run()" title="列表" :class="editor.isActive('bulletList') ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'" class="w-7 h-7 flex items-center justify-center rounded-md text-xs transition-colors">≡</button>
+              <button @click="editor.chain().focus().setHorizontalRule().run()" title="分割线" class="w-7 h-7 flex items-center justify-center rounded-md text-xs text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">—</button>
               <span class="w-px h-4 bg-zinc-200 dark:bg-zinc-700 mx-0.5"></span>
-              <button @click="insertFmt('[', '](url)')" title="链接" class="w-7 h-7 flex items-center justify-center rounded-md text-xs text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">🔗</button>
+              <button @click="setLink" title="链接" class="w-7 h-7 flex items-center justify-center rounded-md text-xs text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">🔗</button>
             </div>
 
-            <textarea
-              v-if="!showPreview"
-              ref="textareaRef"
-              v-model="review"
-              placeholder="写下你的想法..."
-              class="flex-1 min-h-[360px] w-full bg-white dark:bg-zinc-900 rounded-2xl px-5 py-4 outline-none resize-none border border-zinc-200/60 dark:border-zinc-800 text-sm md:text-base leading-relaxed text-zinc-800 dark:text-zinc-200 placeholder-zinc-300 dark:placeholder-zinc-600 focus:ring-2 focus:ring-amber-300 dark:focus:ring-amber-800 transition-shadow"
-            ></textarea>
-            <div
-              v-else
-              class="flex-1 min-h-[360px] w-full bg-white dark:bg-zinc-900 rounded-2xl px-5 py-4 border border-zinc-200/60 dark:border-zinc-800 text-sm md:text-base leading-relaxed overflow-y-auto markdown-body text-zinc-800 dark:text-zinc-200"
-              v-html="renderMarkdown(review || '*暂无感想*')"
-            ></div>
-            <p class="text-[10px] text-zinc-300 dark:text-zinc-600 mt-2">支持 Markdown · 停止输入后自动保存</p>
+            <EditorContent :editor="editor" />
+            <p class="text-[10px] text-zinc-300 dark:text-zinc-600 mt-2">停止输入后自动保存</p>
           </div>
 
           <!-- 图片 -->
