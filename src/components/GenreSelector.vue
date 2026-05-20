@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { CATEGORIES, PREDEFINED_GENRES, REGION_SUGGESTIONS } from '../db'
+import { CATEGORIES, PREDEFINED_GENRES, REGION_SUGGESTIONS } from '../constants'
 import { useShowsStore } from '../stores/shows'
 
 const props = defineProps({

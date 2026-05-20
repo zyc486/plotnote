@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { CATEGORIES } from '../constants'
 
 async function getUserId() {
   const { data: { user } } = await supabase.auth.getUser()
@@ -262,4 +263,75 @@ export async function importFromData(data, replaceAll = false) {
     genreHistory: data.genreHistory?.length || 0,
     series: data.series?.length || 0,
   }
+}
+
+function stripHtml(html) {
+  if (!html) return ''
+  const div = document.createElement('div')
+  div.innerHTML = html
+  return (div.textContent || '').trim()
+}
+
+function categoryLabel(key) {
+  const cat = CATEGORIES.find(c => c.key === key)
+  return cat ? cat.label : key
+}
+
+function episodeCode(ep, category) {
+  if (category === 'movie') return `第${ep.episode}部`
+  if (category === 'book') return `卷${ep.season}·第${ep.episode}章`
+  return `S${String(ep.season).padStart(2, '0')}E${String(ep.episode).padStart(2, '0')}`
+}
+
+export async function exportToMarkdown() {
+  const data = await collectExportData()
+
+  let md = '# PlotNote 导出\n\n'
+  md += `> 导出时间：${new Date().toLocaleString()}\n\n`
+
+  for (const show of data.shows) {
+    const cat = show.category || 'tv'
+    md += `## ${show.name}\n\n`
+    md += `- 分类：${categoryLabel(cat)}`
+    if (show.region) md += `  |  地区：${show.region}`
+    if (show.avg_rating > 0) md += `  |  均分：${show.avg_rating}`
+    md += '\n\n'
+
+    const episodes = data.episodes.filter(e => e.show_id === show.id)
+    for (const ep of episodes) {
+      const epRecords = data.records.filter(r => r.episode_id === ep.id)
+      const activeRecord = epRecords.find(r => r.id === ep.active_record_id)
+      if (!activeRecord) continue
+
+      md += `### ${episodeCode(ep, cat)}\n\n`
+
+      if (activeRecord.rating > 0) {
+        const stars = '★'.repeat(Math.round(activeRecord.rating / 2))
+        md += `**评分**：${stars} ${activeRecord.rating}/10\n\n`
+      }
+
+      const reviewText = stripHtml(activeRecord.review)
+      if (reviewText) md += `${reviewText}\n\n`
+
+      let tags = []
+      try { tags = JSON.parse(activeRecord.tags) } catch {}
+      if (tags.length > 0) md += `标签：${tags.join(', ')}\n\n`
+
+      if (activeRecord.watched_date) md += `观看日期：${activeRecord.watched_date}\n\n`
+
+      md += `---\n\n`
+    }
+  }
+
+  const blob = new Blob([md], { type: 'text/markdown' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `plotnote-export-${new Date().toISOString().split('T')[0]}.md`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+
+  return { shows: data.shows.length, episodes: data.episodes.length, records: data.records.length }
 }

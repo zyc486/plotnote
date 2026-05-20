@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { supabase } from '../utils/supabase'
-import { PREDEFINED_TAGS } from '../db'
+import { PREDEFINED_TAGS } from '../constants'
 import { getUserId } from '../utils/helpers'
 
 export const useTagsStore = defineStore('tags', () => {

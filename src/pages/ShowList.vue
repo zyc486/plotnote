@@ -9,11 +9,14 @@ import { searchAnime as searchAnimeJikan } from '../utils/jikan'
 
 import { searchBooks } from '../utils/googleBooks'
 import { getTerminology, progressLabel } from '../utils/terminology'
-import { CATEGORIES, SHOW_STATUSES } from '../db'
+import { CATEGORIES, SHOW_STATUSES } from '../constants'
+import { parseGenres, categoryLabel, statusLabel, statusColor } from '../utils/helpers'
 import { debounce } from '../utils/debounce'
 import GenreSelector from '../components/GenreSelector.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import CoverImage from '../components/CoverImage.vue'
+import ShowCard from '../components/ShowCard.vue'
+import SeriesCard from '../components/SeriesCard.vue'
 
 const props = defineProps(['toast'])
 const router = useRouter()
@@ -323,26 +326,6 @@ async function handleDelete(id, e) {
   }
 }
 
-function parseGenres(show) {
-  if (Array.isArray(show.genres)) return show.genres
-  try { return JSON.parse(show.genres) } catch { return [] }
-}
-
-function categoryLabel(key) {
-  const cat = CATEGORIES.find(c => c.key === key)
-  return cat ? cat.label : ''
-}
-
-function statusLabel(key) {
-  const s = SHOW_STATUSES.find(st => st.key === key)
-  return s ? s.label : ''
-}
-
-function statusColor(key) {
-  const s = SHOW_STATUSES.find(st => st.key === key)
-  return s ? s.color : ''
-}
-
 const expandedSeries = ref({})
 const statusDropdownId = ref(null)
 
@@ -608,94 +591,26 @@ const manualItemLabel = computed(() => {
 
     <div v-else class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
       <template v-for="item in displayItems" :key="item.type === 'series' ? 'series-' + item.seriesId : 'show-' + item.show.id">
-
-        <!-- 单个作品卡片 -->
-        <div v-if="item.type === 'show'" @click="goToShow(item.show.id)" class="group cursor-pointer">
-          <div class="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-800 mb-2">
-            <img
-              v-if="item.show.coverImage"
-              :src="item.show.coverImage"
-              :alt="item.show.name"
-              class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-              loading="lazy"
-              @error="$event.target.style.display = 'none'"
-            />
-            <div v-else class="w-full h-full bg-gradient-to-br from-gray-300 to-gray-400 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center p-2">
-              <span class="text-gray-500 dark:text-gray-400 font-medium text-center text-xs leading-tight line-clamp-3">{{ item.show.name }}</span>
-            </div>
-            <!-- 评分角标 -->
-            <div v-if="item.show.avgRating > 0" class="absolute top-1.5 left-1.5 bg-black/75 backdrop-blur-sm text-amber-400 text-xs font-bold px-1.5 py-0.5 rounded">
-              {{ item.show.avgRating }}
-            </div>
-            <!-- 状态角标 -->
-            <div
-              v-if="item.show.status"
-              @click.stop="toggleStatusDropdown(item.show.id, $event)"
-              class="absolute top-1.5 right-1.5 cursor-pointer"
-            >
-              <span class="inline-block w-2.5 h-2.5 rounded-full" :class="{
-                'bg-blue-500': item.show.status === 'want',
-                'bg-green-500': item.show.status === 'watching',
-                'bg-gray-400': item.show.status === 'finished',
-                'bg-red-500': item.show.status === 'dropped',
-              }"></span>
-              <div
-                v-if="statusDropdownId === item.show.id"
-                class="absolute right-0 top-full mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-20 min-w-[90px]"
-                @click.stop
-              >
-                <button
-                  v-for="st in SHOW_STATUSES"
-                  :key="st.key"
-                  @click="quickChangeStatus(item.show.id, st.key, $event)"
-                  class="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-                  :class="item.show.status === st.key ? 'text-indigo-600 dark:text-indigo-400 font-medium' : 'text-gray-700 dark:text-gray-300'"
-                >{{ st.label }}</button>
-              </div>
-            </div>
-            <!-- 悬浮操作按钮 -->
-            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-              <div class="flex justify-end gap-1.5">
-                <button @click.stop="openEditMeta(item.show, $event)" class="w-7 h-7 rounded-full bg-white/20 hover:bg-white/40 text-white text-xs flex items-center justify-center transition">编辑</button>
-                <button @click.stop="handleDelete(item.show.id, $event)" class="w-7 h-7 rounded-full bg-red-500/60 hover:bg-red-500/80 text-white text-xs flex items-center justify-center transition">删</button>
-              </div>
-            </div>
-          </div>
-          <h3 class="text-xs md:text-sm font-medium text-gray-900 dark:text-gray-100 truncate leading-tight">{{ item.show.name }}</h3>
-          <p class="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">{{ showProgressLabel(item.show) }}</p>
-        </div>
-
-        <!-- 系列卡片 -->
-        <div v-else @click="toggleSeries(item.seriesId)" class="group cursor-pointer">
-          <div class="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-800 mb-2">
-            <img
-              v-if="item.coverImage"
-              :src="item.coverImage"
-              :alt="item.seriesName"
-              class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-              loading="lazy"
-              @error="$event.target.style.display = 'none'"
-            />
-            <div v-else class="w-full h-full bg-gradient-to-br from-indigo-200 to-indigo-400 dark:from-indigo-800 dark:to-indigo-900 flex items-center justify-center p-2">
-              <span class="text-indigo-700 dark:text-indigo-200 font-medium text-center text-xs leading-tight line-clamp-3">{{ item.seriesName }}</span>
-            </div>
-            <!-- 系列标识 -->
-            <div class="absolute top-1.5 left-1.5 bg-indigo-600/90 backdrop-blur-sm text-white text-[10px] font-medium px-1.5 py-0.5 rounded">
-              系列 · {{ item.shows.length }}部
-            </div>
-            <!-- 评分角标 -->
-            <div v-if="item.avgRating > 0" class="absolute top-1.5 right-1.5 bg-black/75 backdrop-blur-sm text-amber-400 text-xs font-bold px-1.5 py-0.5 rounded">
-              {{ item.avgRating }}
-            </div>
-            <!-- 展开指示器 -->
-            <div class="absolute bottom-2 right-2 w-6 h-6 rounded-full bg-white/20 flex items-center justify-center transition-transform duration-200" :class="{ 'rotate-90': expandedSeries[item.seriesId] }">
-              <span class="text-white text-xs">▶</span>
-            </div>
-          </div>
-          <h3 class="text-xs md:text-sm font-medium text-gray-900 dark:text-gray-100 truncate leading-tight">{{ item.seriesName }}</h3>
-          <p class="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 mt-0.5">系列 · {{ item.shows.length }}部</p>
-        </div>
-
+        <ShowCard
+          v-if="item.type === 'show'"
+          :show="item.show"
+          :status-dropdown-id="statusDropdownId"
+          @go-to="goToShow"
+          @edit="openEditMeta"
+          @delete="handleDelete"
+          @toggle-status="toggleStatusDropdown"
+          @change-status="quickChangeStatus"
+        />
+        <SeriesCard
+          v-else
+          :series-id="item.seriesId"
+          :series-name="item.seriesName"
+          :cover-image="item.coverImage"
+          :show-count="item.shows.length"
+          :avg-rating="item.avgRating"
+          :is-expanded="!!expandedSeries[item.seriesId]"
+          @toggle="toggleSeries"
+        />
       </template>
     </div>
 
@@ -704,43 +619,17 @@ const manualItemLabel = computed(() => {
       <div v-if="item.type === 'series' && expandedSeries[item.seriesId]" class="mt-3 ml-2 md:ml-4">
         <div class="text-xs text-gray-500 dark:text-gray-400 mb-2">▾ {{ item.seriesName }} 的子作品</div>
         <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
-          <div v-for="show in item.shows" :key="show.id" @click="goToShow(show.id)" class="group cursor-pointer">
-            <div class="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-800 mb-2">
-              <img
-                v-if="show.cover_image"
-                :src="show.cover_image"
-                :alt="show.name"
-                class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                loading="lazy"
-                @error="$event.target.style.display = 'none'"
-              />
-              <div v-else class="w-full h-full bg-gradient-to-br from-gray-300 to-gray-400 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center p-2">
-                <span class="text-gray-500 dark:text-gray-400 font-medium text-center text-xs leading-tight line-clamp-3">{{ show.name }}</span>
-              </div>
-              <div v-if="show.avgRating > 0" class="absolute top-1.5 left-1.5 bg-black/75 backdrop-blur-sm text-amber-400 text-xs font-bold px-1.5 py-0.5 rounded">
-                {{ show.avgRating }}
-              </div>
-              <div
-                v-if="show.status"
-                class="absolute top-1.5 right-1.5"
-              >
-                <span class="inline-block w-2.5 h-2.5 rounded-full" :class="{
-                  'bg-blue-500': show.status === 'want',
-                  'bg-green-500': show.status === 'watching',
-                  'bg-gray-400': show.status === 'finished',
-                  'bg-red-500': show.status === 'dropped',
-                }"></span>
-              </div>
-              <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                <div class="flex justify-end gap-1.5">
-                  <button @click.stop="openEditMeta(show, $event)" class="w-7 h-7 rounded-full bg-white/20 hover:bg-white/40 text-white text-xs flex items-center justify-center transition">编辑</button>
-                  <button @click.stop="handleDelete(show.id, $event)" class="w-7 h-7 rounded-full bg-red-500/60 hover:bg-red-500/80 text-white text-xs flex items-center justify-center transition">删</button>
-                </div>
-              </div>
-            </div>
-            <h3 class="text-xs md:text-sm font-medium text-gray-900 dark:text-gray-100 truncate leading-tight">{{ show.name }}</h3>
-            <p class="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">{{ showProgressLabel(show) }}</p>
-          </div>
+          <ShowCard
+            v-for="show in item.shows"
+            :key="show.id"
+            :show="{ ...show, coverImage: show.cover_image || show.coverImage }"
+            :status-dropdown-id="statusDropdownId"
+            @go-to="goToShow"
+            @edit="openEditMeta"
+            @delete="handleDelete"
+            @toggle-status="toggleStatusDropdown"
+            @change-status="quickChangeStatus"
+          />
         </div>
       </div>
     </template>

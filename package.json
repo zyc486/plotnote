@@ -16,7 +16,7 @@
     "@tiptap/extension-underline": "^3.23.5",
     "@tiptap/starter-kit": "^3.23.5",
     "@tiptap/vue-3": "^3.23.5",
-    "dexie": "^4.4.2",
+    "html2canvas": "^1.4.1",
     "pinia": "^3.0.4",
     "vue": "^3.5.33",
     "vue-router": "^4.6.4"

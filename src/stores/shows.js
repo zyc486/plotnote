@@ -217,6 +217,21 @@ export const useShowsStore = defineStore('shows', () => {
     await fetchShows()
   }
 
+  async function fetchAllData() {
+    const userId = await getUserId()
+    const [showsRes, episodesRes, recordsRes] = await Promise.all([
+      supabase.from('shows').select('*').eq('user_id', userId),
+      supabase.from('episodes').select('*').eq('user_id', userId),
+      supabase.from('records').select('*').eq('user_id', userId),
+    ])
+    if (!showsRes.error) shows.value = (showsRes.data || []).map(toCamel)
+    return {
+      shows: shows.value,
+      episodes: episodesRes.data || [],
+      records: recordsRes.data || [],
+    }
+  }
+
   async function getGenreHistory() {
     const userId = await getUserId()
     const { data } = await supabase
@@ -292,6 +307,6 @@ export const useShowsStore = defineStore('shows', () => {
   return {
     shows, loading, fetchShows, getShow, addShow, updateShowMeta, updateShowStats, deleteShow,
     getGenreHistory, updateShowStatus, updateLastWatchedAt, getAllSeries, createSeries, getSeriesName,
-    updateShowCover,
+    updateShowCover, fetchAllData,
   }
 })

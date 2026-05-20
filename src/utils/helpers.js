@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import { CATEGORIES, SHOW_STATUSES } from '../db'
+import { CATEGORIES, SHOW_STATUSES } from '../constants'
 
 let cachedUserId = null
 
@@ -32,4 +32,10 @@ export function statusLabel(key) {
 export function statusColor(key) {
   const s = SHOW_STATUSES.find(st => st.key === key)
   return s ? s.color : ''
+}
+
+export function formatDate(ts) {
+  if (!ts) return ''
+  const d = new Date(ts)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }

@@ -1,18 +1,14 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { supabase } from '../utils/supabase'
-import { CATEGORIES } from '../db'
+import { useShowsStore } from '../stores/shows'
+import { categoryLabel } from '../utils/helpers'
 import { episodeLabel as epLabel } from '../utils/terminology'
 
 const router = useRouter()
+const showsStore = useShowsStore()
 const timeline = ref([])
 const loading = ref(true)
-
-function categoryLabel(key) {
-  const cat = CATEGORIES.find(c => c.key === key)
-  return cat ? cat.label : ''
-}
 
 function categoryIcon(key) {
   switch (key) {
@@ -43,21 +39,7 @@ function getEpisodeLabel(ep, category) {
 async function loadTimeline() {
   loading.value = true
   try {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      loading.value = false
-      return
-    }
-
-    const { data: records, error: recordsError } = await supabase.from('records').select('*').eq('user_id', user.id)
-    const { data: episodes, error: episodesError } = await supabase.from('episodes').select('*').eq('user_id', user.id)
-    const { data: shows, error: showsError } = await supabase.from('shows').select('*').eq('user_id', user.id)
-
-    if (recordsError || episodesError || showsError) {
-      console.error('Timeline query failed:', recordsError || episodesError || showsError)
-      loading.value = false
-      return
-    }
+    const { shows, episodes, records } = await showsStore.fetchAllData()
 
     const showMap = {}
     for (const s of (shows || [])) showMap[s.id] = s
@@ -128,20 +110,11 @@ function goToEpisode(id) {
   router.push(`/episode/${id}`)
 }
 
-function stripMarkdown(text) {
-  if (!text) return ''
-  return text
-    .replace(/#{1,6}\s/g, '')
-    .replace(/\*\*(.*?)\*\*/g, '$1')
-    .replace(/\*(.*?)\*/g, '$1')
-    .replace(/`{1,3}[^`]*`{1,3}/g, '')
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-    .replace(/^[-*+]\s/gm, '')
-    .replace(/^\d+\.\s/gm, '')
-    .replace(/^>\s/gm, '')
-    .replace(/\n+/g, ' ')
-    .trim()
-    .slice(0, 120)
+function stripHtml(html) {
+  if (!html) return ''
+  const div = document.createElement('div')
+  div.innerHTML = html
+  return (div.textContent || '').trim().slice(0, 120)
 }
 
 onMounted(loadTimeline)
@@ -185,7 +158,7 @@ onMounted(loadTimeline)
                   </div>
                   <span v-if="item.rating > 0" class="text-sm font-bold text-amber-400 flex-shrink-0 ml-2">★{{ Number(item.rating).toFixed(1) }}</span>
                 </div>
-                <p v-if="item.review" class="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{{ stripMarkdown(item.review) }}</p>
+                <p v-if="item.review" class="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{{ stripHtml(item.review) }}</p>
               </div>
             </div>
           </div>

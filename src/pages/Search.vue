@@ -1,12 +1,15 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '../utils/supabase'
-import { CATEGORIES } from '../db'
+import { CATEGORIES } from '../constants'
 import { episodeLabel as epLabel } from '../utils/terminology'
+import { parseGenres, categoryLabel, getUserId } from '../utils/helpers'
 import { debounce } from '../utils/debounce'
+import { useTagsStore } from '../stores/tags'
 
 const router = useRouter()
+const tagsStore = useTagsStore()
 
 const query = ref('')
 const minRating = ref(0)
@@ -14,32 +17,22 @@ const selectedTag = ref('')
 const selectedCategory = ref('')
 const allTags = ref([])
 const results = ref([])
+const searching = ref(false)
 
 function episodeLabel(ep, category) {
   return epLabel(ep, category || 'tv')
 }
 
-function parseGenres(show) {
-  if (Array.isArray(show.genres)) return show.genres
-  try { return JSON.parse(show.genres) } catch { return [] }
-}
-
-function categoryLabel(key) {
-  const cat = CATEGORIES.find(c => c.key === key)
-  return cat ? cat.label : ''
-}
-
 onMounted(async () => {
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return
-  const { data: tags } = await supabase.from('tags').select('name').eq('user_id', user.id)
-  allTags.value = (tags || []).map(t => t.name)
+  await tagsStore.fetchTags()
+  allTags.value = tagsStore.tags.map(t => t.name)
 })
 
 const debouncedSearch = debounce(doSearch, 300)
 
 async function doSearch() {
-  const q = query.value.trim().toLowerCase()
+  const q = query.value.trim()
+  const qLower = q.toLowerCase()
   const ratedOnly = minRating.value > 0
   const tagFilter = selectedTag.value
   const categoryFilter = selectedCategory.value
@@ -49,116 +42,128 @@ async function doSearch() {
     return
   }
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return
+  searching.value = true
 
-  const { data: shows, error: showsError } = await supabase.from('shows').select('*').eq('user_id', user.id)
-  const { data: episodes, error: episodesError } = await supabase.from('episodes').select('*').eq('user_id', user.id)
-  const { data: records, error: recordsError } = await supabase.from('records').select('*').eq('user_id', user.id)
-
-  if (showsError || episodesError || recordsError) {
-    console.error('Search query failed:', showsError || episodesError || recordsError)
-    return
-  }
+  const userId = await getUserId()
+  if (!userId) return
 
   const matches = []
 
-  for (const show of (shows || [])) {
-    if (categoryFilter && show.category !== categoryFilter) continue
+  // Server-side: search shows by name/region/genres
+  if (q) {
+    let showsQuery = supabase.from('shows').select('*').eq('user_id', userId).limit(50)
+    if (categoryFilter) showsQuery = showsQuery.eq('category', categoryFilter)
 
-    const showEpisodes = (episodes || []).filter(ep => ep.show_id === show.id)
-    const showGenres = parseGenres(show)
-
-    if (q && show.name.toLowerCase().includes(q)) {
+    const { data: nameMatches } = await showsQuery.ilike('name', `%${q}%`)
+    for (const show of (nameMatches || [])) {
+      const showGenres = parseGenres(show)
       matches.push({
         type: 'show',
         showId: show.id,
         showName: show.name,
         score: 3,
-        text: `剧集: ${show.name}`,
         category: show.category,
         region: show.region,
         genres: showGenres,
       })
     }
 
-    if (q && show.region && show.region.toLowerCase().includes(q)) {
-      if (!matches.find(m => m.type === 'show' && m.showId === show.id)) {
-        matches.push({
-          type: 'show',
-          showId: show.id,
-          showName: show.name,
-          score: 2,
-          text: `地区匹配: ${show.region}`,
-          category: show.category,
-          region: show.region,
-          genres: showGenres,
-        })
+    // Also search by region if query doesn't match names well
+    if (!categoryFilter) {
+      const { data: regionMatches } = await supabase
+        .from('shows').select('*').eq('user_id', userId)
+        .ilike('region', `%${q}%`).limit(20)
+      for (const show of (regionMatches || [])) {
+        if (!matches.find(m => m.type === 'show' && m.showId === show.id)) {
+          matches.push({
+            type: 'show',
+            showId: show.id,
+            showName: show.name,
+            score: 2,
+            category: show.category,
+            region: show.region,
+            genres: parseGenres(show),
+          })
+        }
       }
     }
+  }
 
-    if (q && showGenres.some(g => g.toLowerCase().includes(q))) {
-      if (!matches.find(m => m.type === 'show' && m.showId === show.id)) {
-        matches.push({
-          type: 'show',
-          showId: show.id,
-          showName: show.name,
-          score: 2,
-          text: `类型匹配`,
-          category: show.category,
-          region: show.region,
-          genres: showGenres,
-        })
-      }
+  // Server-side: search records by review content
+  if (q || tagFilter || ratedOnly) {
+    let recordsQuery = supabase
+      .from('records')
+      .select('*, episodes!inner(id, show_id, season, episode, active_record_id, shows!inner(id, name, category, region, genres))')
+      .eq('user_id', userId)
+      .limit(50)
+
+    if (q) {
+      recordsQuery = recordsQuery.ilike('review', `%${q}%`)
     }
 
-    for (const ep of showEpisodes) {
-      const epRecords = (records || []).filter(r => r.episode_id === ep.id)
-      const activeRecord = epRecords.find(r => r.id === ep.active_record_id)
-      if (!activeRecord) continue
+    const { data: recordMatches } = await recordsQuery
 
-      const epTags = (() => { try { return JSON.parse(activeRecord.tags) } catch { return [] } })()
-      const review = activeRecord.review || ''
+    for (const rec of (recordMatches || [])) {
+      const ep = rec.episodes
+      const show = ep?.shows
+      if (!ep || !show) continue
+      if (categoryFilter && show.category !== categoryFilter) continue
 
-      let match = false
-      let score = 0
+      const epTags = (() => { try { return JSON.parse(rec.tags) } catch { return [] } })()
 
-      if (tagFilter && epTags.includes(tagFilter)) {
-        match = true
-        score = 2
-      }
+      // Tag filter (client-side, since tags is JSON)
+      if (tagFilter && !epTags.includes(tagFilter)) continue
 
-      if (q && epTags.some(t => t.toLowerCase().includes(q))) {
-        match = true
-        score = Math.max(score, 2)
-      }
+      // Rating filter (client-side)
+      if (ratedOnly && (rec.rating || 0) < minRating.value) continue
 
-      if (q && review.toLowerCase().includes(q)) {
-        match = true
-        score = Math.max(score, 1)
-      }
+      // Tag text match (client-side)
+      const tagMatch = q && epTags.some(t => t.toLowerCase().includes(qLower))
 
-      if (ratedOnly && (activeRecord.rating < minRating.value)) {
-        match = false
-      } else if (ratedOnly) {
-        match = true
-        score = Math.max(score, 0)
-      }
+      matches.push({
+        type: 'episode',
+        episodeId: ep.id,
+        showId: ep.show_id,
+        showName: show.name,
+        episode: ep,
+        rating: rec.rating,
+        review: (rec.review || '').replace(/<[^>]*>/g, '').slice(0, 100),
+        tags: epTags,
+        score: tagMatch ? 2 : 1,
+        category: show.category,
+      })
+    }
+  }
 
-      if (match) {
-        matches.push({
-          type: 'episode',
-          episodeId: ep.id,
-          showId: ep.show_id,
-          showName: show.name,
-          episode: ep,
-          rating: activeRecord.rating,
-          review: review.slice(0, 100),
-          tags: epTags,
-          score,
-          category: show.category,
-        })
-      }
+  // If we only have filters (no text query), fetch all data for client-side filtering
+  if (!q && (tagFilter || ratedOnly)) {
+    const { data: allRecords } = await supabase
+      .from('records')
+      .select('*, episodes!inner(id, show_id, season, episode, active_record_id, shows!inner(id, name, category, region, genres))')
+      .eq('user_id', userId)
+
+    for (const rec of (allRecords || [])) {
+      const ep = rec.episodes
+      const show = ep?.shows
+      if (!ep || !show) continue
+      if (categoryFilter && show.category !== categoryFilter) continue
+
+      const epTags = (() => { try { return JSON.parse(rec.tags) } catch { return [] } })()
+      if (tagFilter && !epTags.includes(tagFilter)) continue
+      if (ratedOnly && (rec.rating || 0) < minRating.value) continue
+
+      matches.push({
+        type: 'episode',
+        episodeId: ep.id,
+        showId: ep.show_id,
+        showName: show.name,
+        episode: ep,
+        rating: rec.rating,
+        review: (rec.review || '').replace(/<[^>]*>/g, '').slice(0, 100),
+        tags: epTags,
+        score: 0,
+        category: show.category,
+      })
     }
   }
 
@@ -168,6 +173,7 @@ async function doSearch() {
   })
 
   results.value = matches.slice(0, 50)
+  searching.value = false
 }
 
 function goToEpisode(episodeId) {
@@ -192,14 +198,17 @@ function goBack() {
     <h1 class="text-2xl font-bold mb-6">搜索</h1>
 
     <div class="space-y-4 mb-8">
-      <div class="flex gap-3">
+      <div class="relative">
         <input
           v-model="query"
           type="text"
           placeholder="搜索名称、评论、标签、地区、类型..."
-          class="flex-1 bg-gray-100 dark:bg-gray-800 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500 border border-gray-200 dark:border-gray-700"
+          class="w-full bg-gray-100 dark:bg-gray-800 rounded-lg px-4 py-3 pr-10 outline-none focus:ring-2 focus:ring-indigo-500 border border-gray-200 dark:border-gray-700"
           @input="debouncedSearch"
         />
+        <div v-if="searching" class="absolute right-3 top-1/2 -translate-y-1/2">
+          <div class="w-4 h-4 rounded-full border-2 border-indigo-400 border-t-transparent animate-spin"></div>
+        </div>
       </div>
 
       <div class="flex items-center gap-4 flex-wrap">

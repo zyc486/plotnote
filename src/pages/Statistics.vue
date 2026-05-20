@@ -1,11 +1,13 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { supabase } from '../utils/supabase'
-import { CATEGORIES } from '../db'
+import { useShowsStore } from '../stores/shows'
+import { CATEGORIES } from '../constants'
+import { categoryLabel } from '../utils/helpers'
 import { episodeLabel as epLabel } from '../utils/terminology'
 
 const router = useRouter()
+const showsStore = useShowsStore()
 
 const shows = ref([])
 const showsStats = ref([])
@@ -13,6 +15,7 @@ const selectedShowId = ref(null)
 const allRecords = ref([])
 const allEpisodes = ref([])
 const activeTab = ref('overview')
+const selectedYear = ref(new Date().getFullYear())
 
 const selectedShowStats = computed(() => {
   return showsStats.value.find(s => s.showId === selectedShowId.value)
@@ -26,13 +29,24 @@ const lowestEpisode = computed(() => {
   return selectedShowStats.value?.lowest || null
 })
 
+const episodeRatingTrend = computed(() => {
+  if (!selectedShowStats.value) return []
+  const stats = selectedShowStats.value
+  const episodes = allEpisodes.value
+    .filter(ep => ep.show_id === stats.showId)
+    .sort((a, b) => a.season - b.season || a.episode - b.episode)
+
+  return episodes.map(ep => {
+    const rec = allRecords.value.find(r => r.episode_id === ep.id && r.rating > 0)
+    return {
+      label: `${ep.season}x${String(ep.episode).padStart(2, '0')}`,
+      rating: rec?.rating || 0,
+    }
+  }).filter(e => e.rating > 0)
+})
+
 function episodeLabel(ep, category) {
   return epLabel(ep, category || 'tv')
-}
-
-function categoryLabel(key) {
-  const cat = CATEGORIES.find(c => c.key === key)
-  return cat ? cat.label : key
 }
 
 const categoryStats = computed(() => {
@@ -87,18 +101,89 @@ const monthlyTrend = computed(() => {
   }))
 })
 
-onMounted(async () => {
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return
-
-  const { data: s, error: showsError } = await supabase.from('shows').select('*').eq('user_id', user.id)
-  const { data: e, error: episodesError } = await supabase.from('episodes').select('*').eq('user_id', user.id)
-  const { data: r, error: recordsError } = await supabase.from('records').select('*').eq('user_id', user.id)
-
-  if (showsError || episodesError || recordsError) {
-    console.error('Statistics query failed:', showsError || episodesError || recordsError)
-    return
+const availableYears = computed(() => {
+  const years = new Set()
+  for (const r of allRecords.value) {
+    if (!r.watchedDate) continue
+    const d = new Date(r.watchedDate)
+    if (!isNaN(d)) years.add(d.getFullYear())
   }
+  return [...years].sort((a, b) => b - a)
+})
+
+const yearReview = computed(() => {
+  const year = selectedYear.value
+  const yearRecords = allRecords.value.filter(r => {
+    if (!r.watchedDate) return false
+    const d = new Date(r.watchedDate)
+    return !isNaN(d) && d.getFullYear() === year
+  })
+
+  const ratedRecords = yearRecords.filter(r => r.rating > 0)
+  const avgRating = ratedRecords.length > 0
+    ? (ratedRecords.reduce((s, r) => s + r.rating, 0) / ratedRecords.length).toFixed(1)
+    : 0
+
+  // 最高分作品
+  const showRatings = {}
+  for (const r of ratedRecords) {
+    const ep = allEpisodes.value.find(e => e.id === r.episode_id)
+    if (!ep) continue
+    const show = shows.value.find(s => s.id === ep.show_id)
+    if (!show) continue
+    if (!showRatings[show.id]) showRatings[show.id] = { show, ratings: [] }
+    showRatings[show.id].ratings.push(r.rating)
+  }
+  const topShows = Object.values(showRatings)
+    .map(({ show, ratings }) => ({
+      name: show.name,
+      category: show.category,
+      avgRating: (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1),
+      count: ratings.length,
+    }))
+    .sort((a, b) => b.avgRating - a.avgRating)
+    .slice(0, 5)
+
+  // 最常看的类型
+  const catCounts = {}
+  for (const r of yearRecords) {
+    const ep = allEpisodes.value.find(e => e.id === r.episode_id)
+    if (!ep) continue
+    const show = shows.value.find(s => s.id === ep.show_id)
+    if (!show) continue
+    const cat = show.category || 'tv'
+    catCounts[cat] = (catCounts[cat] || 0) + 1
+  }
+  const topCategory = Object.entries(catCounts).sort((a, b) => b[1] - a[1])[0]
+
+  // 月度热力图
+  const monthCounts = Array(12).fill(0)
+  for (const r of yearRecords) {
+    const d = new Date(r.watchedDate)
+    if (!isNaN(d)) monthCounts[d.getMonth()]++
+  }
+  const maxMonth = Math.max(...monthCounts, 1)
+
+  // 已看作品数
+  const watchedShows = new Set()
+  for (const r of yearRecords) {
+    const ep = allEpisodes.value.find(e => e.id === r.episode_id)
+    if (ep) watchedShows.add(ep.show_id)
+  }
+
+  return {
+    totalEpisodes: yearRecords.length,
+    totalShows: watchedShows.size,
+    avgRating,
+    topShows,
+    topCategory: topCategory ? { label: categoryLabel(topCategory[0]), count: topCategory[1] } : null,
+    monthCounts,
+    maxMonth,
+  }
+})
+
+onMounted(async () => {
+  const { shows: s, episodes: e, records: r } = await showsStore.fetchAllData()
 
   shows.value = s || []
   allEpisodes.value = e || []
@@ -197,6 +282,7 @@ function goBack() {
     <div class="flex items-center gap-2 mb-6">
       <button @click="activeTab = 'overview'" class="px-4 py-1.5 text-sm rounded-full transition" :class="activeTab === 'overview' ? 'bg-gray-800 text-white dark:bg-indigo-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'">总览</button>
       <button @click="activeTab = 'detail'" class="px-4 py-1.5 text-sm rounded-full transition" :class="activeTab === 'detail' ? 'bg-gray-800 text-white dark:bg-indigo-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'">作品详情</button>
+      <button @click="activeTab = 'year'" class="px-4 py-1.5 text-sm rounded-full transition" :class="activeTab === 'year' ? 'bg-gray-800 text-white dark:bg-indigo-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'">年度回顾</button>
     </div>
 
     <div v-if="shows.length === 0" class="text-center text-gray-400 dark:text-gray-500 py-12">
@@ -324,6 +410,40 @@ function goBack() {
           </div>
         </div>
 
+        <div v-if="episodeRatingTrend.length > 1" class="bg-gray-100 dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+          <h3 class="text-sm text-gray-500 dark:text-gray-400 mb-3">逐集评分趋势</h3>
+          <div class="relative h-32">
+            <svg class="w-full h-full" :viewBox="`0 0 ${episodeRatingTrend.length * 20} 100`" preserveAspectRatio="none">
+              <!-- Grid lines -->
+              <line v-for="n in [2,4,6,8]" :key="n" :x1="0" :y1="100 - n * 10" :x2="episodeRatingTrend.length * 20" :y2="100 - n * 10" class="stroke-gray-300 dark:stroke-gray-600" stroke-width="0.5" stroke-dasharray="4" />
+              <!-- Line path -->
+              <polyline
+                :points="episodeRatingTrend.map((p, i) => `${i * 20 + 10},${100 - p.rating * 10}`).join(' ')"
+                fill="none"
+                class="stroke-indigo-500"
+                stroke-width="1.5"
+                stroke-linejoin="round"
+              />
+              <!-- Dots -->
+              <circle
+                v-for="(p, i) in episodeRatingTrend" :key="i"
+                :cx="i * 20 + 10"
+                :cy="100 - p.rating * 10"
+                r="2"
+                class="fill-indigo-500"
+              />
+            </svg>
+            <!-- Y axis labels -->
+            <div class="absolute left-0 top-0 h-full flex flex-col justify-between text-[10px] text-gray-400 dark:text-gray-500 -ml-1">
+              <span>10</span><span>8</span><span>6</span><span>4</span><span>2</span><span>0</span>
+            </div>
+          </div>
+          <div class="flex justify-between text-[10px] text-gray-400 dark:text-gray-500 mt-1 px-2">
+            <span>{{ episodeRatingTrend[0]?.label }}</span>
+            <span>{{ episodeRatingTrend[episodeRatingTrend.length - 1]?.label }}</span>
+          </div>
+        </div>
+
         <div v-if="selectedShowStats.seasonStats.length > 0" class="bg-gray-100 dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
           <h3 class="text-sm text-gray-500 dark:text-gray-400 mb-3">各季平均分</h3>
           <div class="space-y-2">
@@ -353,6 +473,85 @@ function goBack() {
           </div>
         </div>
       </div>
+    </div>
+
+    <div v-else-if="activeTab === 'year'" class="space-y-4">
+      <div v-if="availableYears.length === 0" class="text-center text-gray-400 dark:text-gray-500 py-8">
+        暂无观看记录
+      </div>
+
+      <template v-else>
+        <!-- 年份选择 -->
+        <div class="flex items-center gap-2 overflow-x-auto pb-1">
+          <button
+            v-for="y in availableYears" :key="y"
+            @click="selectedYear = y"
+            class="px-4 py-1.5 text-sm rounded-full transition whitespace-nowrap"
+            :class="selectedYear === y ? 'bg-gray-800 text-white dark:bg-indigo-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'"
+          >{{ y }}</button>
+        </div>
+
+        <!-- 年度统计卡片 -->
+        <div class="grid grid-cols-3 gap-3">
+          <div class="bg-gray-100 dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700 text-center">
+            <div class="text-3xl font-bold text-indigo-500 dark:text-indigo-400">{{ yearReview.totalEpisodes }}</div>
+            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">观看集数</div>
+          </div>
+          <div class="bg-gray-100 dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700 text-center">
+            <div class="text-3xl font-bold text-emerald-500 dark:text-emerald-400">{{ yearReview.totalShows }}</div>
+            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">观看作品</div>
+          </div>
+          <div class="bg-gray-100 dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700 text-center">
+            <div class="text-3xl font-bold text-amber-400">{{ yearReview.avgRating || '--' }}</div>
+            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">年度均分</div>
+          </div>
+        </div>
+
+        <!-- 月度热力图 -->
+        <div class="bg-gray-100 dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+          <h3 class="text-sm text-gray-500 dark:text-gray-400 mb-3">月度观看热力图</h3>
+          <div class="grid grid-cols-6 sm:grid-cols-12 gap-2">
+            <div v-for="(count, i) in yearReview.monthCounts" :key="i" class="flex flex-col items-center gap-1">
+              <div
+                class="w-full aspect-square rounded-lg transition-all duration-300"
+                :class="count > 0
+                  ? count >= yearReview.maxMonth * 0.8
+                    ? 'bg-indigo-500 dark:bg-indigo-400'
+                    : count >= yearReview.maxMonth * 0.4
+                      ? 'bg-indigo-300 dark:bg-indigo-600'
+                      : 'bg-indigo-100 dark:bg-indigo-900/30'
+                  : 'bg-gray-200 dark:bg-gray-700'"
+              ></div>
+              <span class="text-[10px] text-gray-400 dark:text-gray-500">{{ i + 1 }}月</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- TOP 作品 -->
+        <div v-if="yearReview.topShows.length > 0" class="bg-gray-100 dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+          <h3 class="text-sm text-gray-500 dark:text-gray-400 mb-3">年度最佳作品</h3>
+          <div class="space-y-2">
+            <div v-for="(s, i) in yearReview.topShows" :key="i" class="flex items-center gap-3">
+              <span class="text-sm font-bold w-6 text-center" :class="i === 0 ? 'text-amber-400' : i === 1 ? 'text-gray-400' : i === 2 ? 'text-amber-600' : 'text-gray-400 dark:text-gray-500'">
+                {{ i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1 }}
+              </span>
+              <span class="flex-1 text-sm text-gray-700 dark:text-gray-300 truncate">{{ s.name }}</span>
+              <span class="text-xs text-gray-400 dark:text-gray-500 px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-700">{{ categoryLabel(s.category) }}</span>
+              <span class="text-sm font-bold text-amber-400">{{ s.avgRating }}</span>
+              <span class="text-xs text-gray-400 dark:text-gray-500">({{ s.count }}集)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 最常看类型 -->
+        <div v-if="yearReview.topCategory" class="bg-gray-100 dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+          <h3 class="text-sm text-gray-500 dark:text-gray-400 mb-2">最常看类型</h3>
+          <div class="flex items-center gap-3">
+            <span class="text-2xl font-bold text-indigo-500 dark:text-indigo-400">{{ yearReview.topCategory.label }}</span>
+            <span class="text-sm text-gray-500 dark:text-gray-400">{{ yearReview.topCategory.count }} 集</span>
+          </div>
+        </div>
+      </template>
     </div>
   </div>
 </template>

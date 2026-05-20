@@ -9,18 +9,26 @@ import { saveDraft, clearDraft, loadDraft } from '../utils/draftCache'
 import { getTerminology } from '../utils/terminology'
 import ImageManager from '../components/ImageManager.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
-import { getUserId } from '../utils/helpers'
+import RatingPanel from '../components/RatingPanel.vue'
+import ExternalRatings from '../components/ExternalRatings.vue'
+import ReviewEditor from '../components/ReviewEditor.vue'
+import RewatchList from '../components/RewatchList.vue'
+import EpisodeGrid from '../components/EpisodeGrid.vue'
+import BottomNav from '../components/BottomNav.vue'
 import { renderMarkdown } from '../utils/markdown'
-import { useEditor, EditorContent } from '@tiptap/vue-3'
+import { useEditor } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import Link from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
 import { getRatingsByTitle, hasOmdbKey } from '../utils/omdb'
+import { handleError } from '../utils/errorHandler'
+import { useTheme } from '../utils/theme'
 
 const props = defineProps(['toast'])
 
 const route = useRoute()
+const { isDark } = useTheme()
 const router = useRouter()
 
 const episode = ref(null)
@@ -37,8 +45,6 @@ const ratingAnimation = ref(false)
 const confirmDialog = ref({ visible: false, title: '', message: '', onConfirm: null })
 const externalRatings = ref(null)
 const loadingRatings = ref(false)
-const editorContent = ref('')
-
 const recordsStore = useRecordsStore()
 const episodesStore = useEpisodesStore()
 const showsStore = useShowsStore()
@@ -89,6 +95,7 @@ const editor = useEditor({
 })
 
 let skipWatchers = false
+let lastRating = 0
 
 function parseJsonSafe(str) {
   try { return JSON.parse(str) } catch { return [] }
@@ -106,7 +113,7 @@ async function forceSave() {
     })
     dirty.value = false
   } catch (e) {
-    console.warn('Force save failed:', e)
+    handleError(e, 'ForceSave')
   }
 }
 
@@ -138,7 +145,6 @@ const debouncedSaveRating = debounce(async (val) => {
   if (currentRecordId.value) {
     await recordsStore.updateRecord(currentRecordId.value, { rating: val })
     dirty.value = false
-    // 更新右侧选集面板的评分
     if (episode.value) {
       episodeScores.value = {
         ...episodeScores.value,
@@ -148,16 +154,6 @@ const debouncedSaveRating = debounce(async (val) => {
   }
   saveToDraft()
 }, 300)
-
-const debouncedSaveReview = debounce(async (val) => {
-  if (skipWatchers) return
-  await ensureRecordExists()
-  if (currentRecordId.value) {
-    await recordsStore.updateRecord(currentRecordId.value, { review: val })
-    dirty.value = false
-  }
-  saveToDraft()
-}, 500)
 
 const debouncedSaveImages = debounce(async (val) => {
   if (skipWatchers) return
@@ -187,18 +183,26 @@ const debouncedSaveWatchedDate = debounce(async (val) => {
   }
 }, 500)
 
-watch(rating, (val) => {
+const debouncedUndoToast = debounce((oldVal, newVal) => {
+  if (oldVal === 0 || oldVal === newVal) return
+  props.toast?.(`评分: ${Number(oldVal).toFixed(1)} → ${Number(newVal).toFixed(1)}`, () => {
+    skipWatchers = true
+    rating.value = oldVal
+    skipWatchers = false
+  })
+}, 600)
+
+watch(rating, (val, oldVal) => {
   if (skipWatchers) return
+  if (lastRating === 0 && oldVal > 0) lastRating = oldVal
   dirty.value = true
   ratingAnimation.value = true
   setTimeout(() => ratingAnimation.value = false, 300)
   debouncedSaveRating(val)
-})
-
-watch(review, (val) => {
-  if (skipWatchers) return
-  dirty.value = true
-  debouncedSaveReview(val)
+  if (lastRating > 0 && val !== lastRating) {
+    debouncedUndoToast(lastRating, val)
+    lastRating = 0
+  }
 })
 
 watch(images, (val) => {
@@ -238,45 +242,19 @@ async function loadEpisodeRecords() {
   }))
 }
 
-function watchCount(episodeId) {
-  return episodeRecords.value.filter(r => r.episodeId === episodeId).length
-}
-
 async function fetchEpisodeScores() {
   if (!show.value) return
-  const userId = await getUserId()
-  if (!userId) return
-  const episodeIds = episodesStore.episodes.map(e => e.id)
-  if (!episodeIds.length) { episodeScores.value = {}; return }
   try {
-    const { data: records, error } = await supabase
-      .from('records')
-      .select('id, episode_id, rating')
-      .in('episode_id', episodeIds)
-      .eq('user_id', userId)
-    if (error) { console.warn('fetchEpisodeScores:', error.message); return }
-    const scores = {}
-    for (const ep of episodesStore.episodes) {
-      const epRecords = (records || []).filter(r => r.episode_id === ep.id)
-      const rated = epRecords.find(r => r.rating > 0)
-      scores[ep.id] = { rating: rated?.rating || 0, count: epRecords.length }
-    }
-    episodeScores.value = scores
+    episodeScores.value = await episodesStore.fetchAllEpisodeScores()
   } catch (e) {
-    console.warn('fetchEpisodeScores failed:', e)
+    handleError(e, 'FetchEpisodeScores')
   }
 }
 
-function scrollToCurrent() {
-  nextTick(() => {
-    const el = document.getElementById(`ep-nav-${episode.value?.id}`)
-    el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
-  })
-}
-
-async function initPage() {
+async function initPage({ skipFetchEpisodes = false } = {}) {
   loaded.value = false
   skipWatchers = true
+  lastRating = 0
 
   try {
     const episodeId = Number(route.params.id)
@@ -287,12 +265,19 @@ async function initPage() {
       return
     }
 
-    show.value = await showsStore.getShow(episode.value.show_id)
+    const prevShowId = show.value?.id
+    const showChanged = episode.value.show_id !== prevShowId
+
+    if (showChanged) {
+      show.value = await showsStore.getShow(episode.value.show_id)
+    }
     episode.value._category = show.value?.category || 'tv'
     episodeLabel.value = episodesStore.episodeLabel(episode.value)
 
-    await episodesStore.fetchEpisodes(episode.value.show_id)
-    await fetchEpisodeScores()
+    if (!skipFetchEpisodes || showChanged) {
+      await episodesStore.fetchEpisodes(episode.value.show_id)
+      await fetchEpisodeScores()
+    }
     rightSeason.value = episode.value.season || availableSeasons.value[0] || 0
 
     const { prev, next } = episodesStore.getAdjacentEpisodes(episodeId)
@@ -342,12 +327,11 @@ async function initPage() {
     await nextTick()
     skipWatchers = false
 
-    const textarea = document.querySelector('textarea')
     if (editor.value && !editor.value.getText().trim()) {
       editor.value.commands.focus()
     }
   } catch (e) {
-    console.error('initPage failed:', e)
+    handleError(e, 'InitPage', props.toast)
   } finally {
     loaded.value = true
   }
@@ -428,6 +412,7 @@ async function jumpToEpisode(episodeData) {
   if (!episodeData) return
   await forceSave()
   if (episode.value) clearDraft(episode.value.id)
+  showSidebarMobile.value = false
   router.push(`/episode/${episodeData.id}`)
 }
 
@@ -458,7 +443,6 @@ function setLink() {
 function setEditorContent(content) {
   const text = content || ''
   if (!text) { editor.value?.commands.setContent(''); return }
-  // 旧数据是 Markdown，转换为 HTML；新数据是 HTML
   if (/<\/?[a-z][\s\S]*>/i.test(text)) {
     editor.value?.commands.setContent(text)
   } else {
@@ -466,16 +450,54 @@ function setEditorContent(content) {
   }
 }
 
-function formatDate(ts) {
-  if (!ts) return ''
-  const d = new Date(ts)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+async function shareReview() {
+  const el = document.querySelector('.review-share-card')
+  if (!el) return
+
+  try {
+    const { default: html2canvas } = await import('html2canvas')
+    const canvas = await html2canvas(el, {
+      backgroundColor: isDark.value ? '#18181b' : '#ffffff',
+      scale: 2,
+    })
+
+    if (navigator.share && navigator.canShare) {
+      canvas.toBlob(async (blob) => {
+        if (!blob) return
+        const file = new File([blob], 'review.png', { type: 'image/png' })
+        try {
+          await navigator.share({
+            title: `${show.value?.name} - ${episodeLabel.value}`,
+            text: `评分：${rating.value}/10`,
+            files: [file],
+          })
+        } catch {
+          // 用户取消分享，降级为下载
+          downloadCanvas(canvas)
+        }
+      })
+    } else {
+      downloadCanvas(canvas)
+    }
+  } catch (e) {
+    handleError(e, 'ShareReview', props.toast)
+  }
 }
 
-watch(() => route.params.id, (newId, oldId) => {
-  if (newId && newId !== oldId) {
-    initPage()
-  }
+function downloadCanvas(canvas) {
+  const link = document.createElement('a')
+  link.download = `review-${episode.value?.id}.png`
+  link.href = canvas.toDataURL()
+  link.click()
+}
+
+watch(() => route.params.id, async (newId, oldId) => {
+  if (!newId || newId === oldId) return
+
+  // 同 show 下切换集，复用 episodes 缓存
+  const newEp = await episodesStore.getEpisode(Number(newId))
+  const sameShow = newEp && newEp.show_id === episode.value?.show_id
+  await initPage({ skipFetchEpisodes: sameShow })
 })
 
 onMounted(() => {
@@ -515,8 +537,9 @@ onBeforeRouteLeave(async (to, from, next) => {
       </div>
 
       <div class="flex items-center gap-3">
-        <button @click="showSidebarMobile = !showSidebarMobile" class="md:hidden text-xs text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors">
-          {{ showSidebarMobile ? '收起' : '面板' }}
+        <button @click="showSidebarMobile = true" class="md:hidden flex items-center gap-1 text-xs text-amber-500 hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300 transition-colors">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+          选集 ({{ episodesStore.episodes.length }})
         </button>
         <span class="flex items-center gap-1.5 text-xs text-zinc-400 dark:text-zinc-500">
           <span class="w-1.5 h-1.5 rounded-full" :class="dirty ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'"></span>
@@ -528,76 +551,11 @@ onBeforeRouteLeave(async (to, from, next) => {
     <!-- 主区域 -->
     <div v-if="loaded" class="flex flex-col md:flex-row flex-1 min-h-0">
       <!-- 侧边栏 -->
-      <aside class="w-full md:w-72 flex-shrink-0 border-t md:border-t-0 md:border-r border-zinc-200/60 dark:border-zinc-800 overflow-y-auto" :class="showSidebarMobile ? 'block' : 'hidden md:block'">
+      <aside class="w-full md:w-72 flex-shrink-0 border-t md:border-t-0 md:border-r border-zinc-200/60 dark:border-zinc-800 overflow-y-auto hidden md:block">
         <div class="p-4 space-y-4">
+          <RatingPanel v-model:rating="rating" :animation="ratingAnimation" />
+          <ExternalRatings :ratings="externalRatings" />
 
-          <!-- 评分卡片 -->
-          <div class="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-200/60 dark:border-zinc-800">
-            <div class="text-center mb-4">
-              <span
-                class="inline-block text-5xl font-bold tracking-tight transition-all duration-300"
-                :class="rating > 0 ? 'text-amber-500' : 'text-zinc-300 dark:text-zinc-600'"
-                :style="{ transform: ratingAnimation ? 'scale(1.15)' : 'scale(1)' }"
-              >{{ Number(rating).toFixed(1) }}</span>
-              <p class="text-[11px] text-zinc-400 dark:text-zinc-500 mt-1">/ 10</p>
-            </div>
-
-            <!-- 星标快捷评分 -->
-            <div class="flex justify-center gap-1 mb-4">
-              <button
-                v-for="star in 5" :key="star"
-                @click="rating = star * 2"
-                class="text-2xl transition-all duration-150 hover:scale-110"
-                :class="rating >= star * 2 ? 'text-amber-400' : 'text-zinc-200 dark:text-zinc-700'"
-              >★</button>
-            </div>
-
-            <!-- 精度滑块 -->
-            <div class="relative">
-              <input
-                v-model.number="rating"
-                type="range" min="0" max="10" step="0.1"
-                class="w-full h-1.5 rounded-full appearance-none cursor-pointer"
-                :class="rating > 0 ? 'accent-amber-400' : 'accent-zinc-300 dark:accent-zinc-600'"
-              />
-            </div>
-
-            <!-- 快捷分档 + 数字输入 -->
-            <div class="flex items-center justify-between gap-1 mt-3">
-              <button
-                v-for="n in [0,2,4,6,8,10]" :key="n"
-                @click="rating = n"
-                class="w-8 h-6 rounded-md text-[10px] font-medium transition-colors"
-                :class="rating === n ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 dark:text-zinc-500'"
-              >{{ n }}</button>
-              <input
-                :value="rating"
-                @input="rating = Number($event.target.value)"
-                type="number" min="0" max="10" step="0.1"
-                class="w-14 text-center bg-transparent text-sm font-bold outline-none border-b-2 transition-colors"
-                :class="rating > 0 ? 'text-amber-500 border-amber-300' : 'text-zinc-400 border-zinc-200 dark:border-zinc-700'"
-              />
-            </div>
-          </div>
-
-          <!-- 外部评分 -->
-          <div v-if="externalRatings" class="bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-200/60 dark:border-zinc-800 space-y-2">
-            <p class="text-[11px] text-zinc-400 dark:text-zinc-500 uppercase tracking-wider font-medium">外部评分</p>
-            <div v-if="externalRatings.imdbRating" class="flex items-center justify-between text-sm">
-              <span class="text-zinc-600 dark:text-zinc-400">IMDb</span>
-              <span class="font-semibold text-yellow-600 dark:text-yellow-500">{{ externalRatings.imdbRating }}/10</span>
-            </div>
-            <div v-if="externalRatings.rtRating" class="flex items-center justify-between text-sm">
-              <span class="text-zinc-600 dark:text-zinc-400">烂番茄</span>
-              <span class="font-semibold text-red-500">{{ externalRatings.rtRating }}</span>
-            </div>
-            <div v-if="externalRatings.metacritic" class="flex items-center justify-between text-sm">
-              <span class="text-zinc-600 dark:text-zinc-400">Metacritic</span>
-              <span class="font-semibold text-blue-500">{{ externalRatings.metacritic }}</span>
-            </div>
-          </div>
-
-          <!-- 观看日期 -->
           <div class="bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-200/60 dark:border-zinc-800">
             <p class="text-[11px] text-zinc-400 dark:text-zinc-500 uppercase tracking-wider font-medium mb-2">观看日期</p>
             <input
@@ -607,130 +565,61 @@ onBeforeRouteLeave(async (to, from, next) => {
             />
           </div>
 
-          <!-- 多刷记录 -->
-          <div class="bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-200/60 dark:border-zinc-800">
-            <div class="flex items-center justify-between mb-3">
-              <p class="text-[11px] text-zinc-400 dark:text-zinc-500 uppercase tracking-wider font-medium">多刷记录</p>
-              <button @click="createNewRecord" class="text-xs text-amber-500 hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300 transition-colors font-medium">+ 新建</button>
-            </div>
-            <div v-if="episodeRecords.length > 0" class="space-y-1.5">
-              <div
-                v-for="(record, index) in episodeRecords" :key="record.id"
-                @click="record.id !== currentRecordId && switchActiveRecord(record.id)"
-                class="group rounded-xl px-3 py-2.5 cursor-pointer transition-all duration-200"
-                :class="record.id === currentRecordId ? 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800' : 'hover:bg-zinc-50 dark:hover:bg-zinc-800 border border-transparent'"
-              >
-                <div class="flex items-center justify-between">
-                  <div class="flex items-center gap-2">
-                    <span class="text-xs font-medium text-zinc-700 dark:text-zinc-300">第{{ episodeRecords.length - index }}次</span>
-                    <span v-if="record.id === episode?.activeRecordId" class="text-[10px] bg-amber-400/20 text-amber-600 dark:text-amber-400 px-1.5 py-px rounded-full font-medium">主</span>
-                  </div>
-                  <span v-if="record.rating > 0" class="text-sm font-bold text-amber-500">{{ Number(record.rating).toFixed(1) }}</span>
-                  <span v-else class="text-xs text-zinc-300 dark:text-zinc-600">—</span>
-                </div>
-                <div class="flex items-center justify-between mt-1">
-                  <span class="text-[10px] text-zinc-400 dark:text-zinc-500">{{ record.watchedDate || formatDate(record.createdAt) }}</span>
-                  <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      v-if="record.id !== currentRecordId"
-                      @click.stop="deleteRecord(record.id)"
-                      class="text-[10px] text-red-400 hover:text-red-500 px-1 transition-colors"
-                    >删除</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <p v-else class="text-xs text-zinc-400 dark:text-zinc-500 text-center py-4">评分后自动创建</p>
-          </div>
+          <RewatchList
+            :records="episodeRecords"
+            :current-record-id="currentRecordId"
+            :active-record-id="episode?.activeRecordId"
+            @create="createNewRecord"
+            @switch="switchActiveRecord"
+            @delete="deleteRecord"
+          />
         </div>
       </aside>
 
       <!-- 主编辑区 -->
       <main class="flex-1 flex flex-col min-w-0">
         <div class="flex-1 flex flex-col p-4 md:p-8">
-          <!-- 感想编辑器 -->
-          <div class="flex-1 flex flex-col" v-if="editor">
-            <div class="flex items-center justify-between mb-2">
-              <label class="text-xs text-zinc-400 dark:text-zinc-500 uppercase tracking-wider font-medium">感想</label>
+          <div class="review-share-card bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-200/60 dark:border-zinc-800 mb-4">
+            <div class="flex items-center gap-2 mb-3">
+              <span class="text-sm font-medium text-zinc-800 dark:text-zinc-200">{{ show?.name }}</span>
+              <span class="text-xs text-zinc-400 dark:text-zinc-500">·</span>
+              <span class="text-xs text-zinc-500 dark:text-zinc-400">{{ episodeLabel }}</span>
+              <span v-if="rating > 0" class="ml-auto text-amber-400 font-bold text-sm">{{ Number(rating).toFixed(1) }}/10</span>
             </div>
-
-            <!-- 格式工具栏 -->
-            <div class="flex items-center gap-0.5 mb-2 flex-wrap">
-              <button @click="editor.chain().focus().toggleBold().run()" title="加粗" :class="editor.isActive('bold') ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'" class="w-7 h-7 flex items-center justify-center rounded-md text-xs font-bold transition-colors">B</button>
-              <button @click="editor.chain().focus().toggleItalic().run()" title="斜体" :class="editor.isActive('italic') ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'" class="w-7 h-7 flex items-center justify-center rounded-md text-xs italic transition-colors font-serif">I</button>
-              <button @click="editor.chain().focus().toggleUnderline().run()" title="下划线" :class="editor.isActive('underline') ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'" class="w-7 h-7 flex items-center justify-center rounded-md text-xs underline transition-colors">U</button>
-              <button @click="editor.chain().focus().toggleStrike().run()" title="删除线" :class="editor.isActive('strike') ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'" class="w-7 h-7 flex items-center justify-center rounded-md text-xs line-through transition-colors">S</button>
-              <span class="w-px h-4 bg-zinc-200 dark:bg-zinc-700 mx-0.5"></span>
-              <button @click="editor.chain().focus().toggleHeading({ level: 1 }).run()" title="标题1" :class="editor.isActive('heading', { level: 1 }) ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'" class="w-7 h-7 flex items-center justify-center rounded-md text-xs font-bold transition-colors">H₁</button>
-              <button @click="editor.chain().focus().toggleHeading({ level: 2 }).run()" title="标题2" :class="editor.isActive('heading', { level: 2 }) ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'" class="w-7 h-7 flex items-center justify-center rounded-md text-xs font-bold transition-colors">H₂</button>
-              <span class="w-px h-4 bg-zinc-200 dark:bg-zinc-700 mx-0.5"></span>
-              <button @click="editor.chain().focus().toggleBlockquote().run()" title="引用" :class="editor.isActive('blockquote') ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'" class="w-7 h-7 flex items-center justify-center rounded-md text-xs transition-colors">❝</button>
-              <button @click="editor.chain().focus().toggleBulletList().run()" title="列表" :class="editor.isActive('bulletList') ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'" class="w-7 h-7 flex items-center justify-center rounded-md text-xs transition-colors">≡</button>
-              <button @click="editor.chain().focus().setHorizontalRule().run()" title="分割线" class="w-7 h-7 flex items-center justify-center rounded-md text-xs text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">—</button>
-              <span class="w-px h-4 bg-zinc-200 dark:bg-zinc-700 mx-0.5"></span>
-              <button @click="setLink" title="链接" class="w-7 h-7 flex items-center justify-center rounded-md text-xs text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">🔗</button>
-            </div>
-
-            <EditorContent :editor="editor" />
-            <p class="text-[10px] text-zinc-300 dark:text-zinc-600 mt-2">停止输入后自动保存</p>
+            <ReviewEditor :editor="editor" @set-link="setLink" />
           </div>
-
-          <!-- 图片 -->
-          <div class="mt-6">
-            <ImageManager v-model="images" />
+          <div class="flex items-center gap-2">
+            <div class="flex-1">
+              <ImageManager v-model="images" />
+            </div>
+            <button
+              @click="shareReview"
+              class="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 text-xs text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 bg-zinc-100 dark:bg-zinc-800 rounded-lg transition-colors"
+              title="分享感想"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+              分享
+            </button>
           </div>
         </div>
       </main>
 
-      <!-- 右侧选集面板 -->
+      <!-- 右侧选集面板 (桌面) -->
       <aside
-        class="w-56 xl:w-60 flex-shrink-0 border-l border-zinc-200/60 dark:border-zinc-800 overflow-hidden flex flex-col"
-        :class="{ 'hidden xl:flex': !showSidebarMobile, 'flex': showSidebarMobile }"
+        class="w-56 xl:w-60 flex-shrink-0 border-l border-zinc-200/60 dark:border-zinc-800 overflow-hidden hidden xl:flex flex-col"
       >
         <div class="flex items-center justify-between px-3 py-2.5 border-b border-zinc-200/60 dark:border-zinc-800 flex-shrink-0">
           <span class="text-[11px] text-zinc-400 dark:text-zinc-500 tracking-wider font-medium uppercase">选集</span>
-          <button @click="showSidebarMobile = !showSidebarMobile" class="xl:hidden text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 text-xs">×</button>
         </div>
-
-        <!-- 季标签 -->
-        <div v-if="availableSeasons.length > 1" class="flex gap-1 px-3 py-2 flex-shrink-0 overflow-x-auto border-b border-zinc-100 dark:border-zinc-800/50">
-          <button
-            v-for="s in availableSeasons" :key="s"
-            @click="rightSeason = s"
-            class="px-2.5 py-1 text-[11px] rounded-lg font-medium transition-colors whitespace-nowrap flex-shrink-0"
-            :class="rightSeason === s ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 dark:text-zinc-500'"
-          >第{{ s }}{{ seasonLabel || '季' }}</button>
-        </div>
-
-        <!-- 集数卡片网格 -->
-        <div class="flex-1 overflow-y-auto p-3">
-          <div class="grid grid-cols-4 gap-2">
-            <button
-              v-for="ep in episodesStore.episodes.filter(e => rightSeason === 0 || e.season === rightSeason)" :key="ep.id"
-              :id="`ep-nav-${ep.id}`"
-              @click="selectEpisode(ep)"
-              class="relative aspect-square rounded-xl flex flex-col items-center justify-center transition-all duration-200 active:scale-95"
-              :class="ep.id === episode?.id
-                ? 'bg-amber-100 dark:bg-amber-900/30 ring-2 ring-amber-400 dark:ring-amber-500 shadow-sm'
-                : episodeScores[ep.id]?.rating > 0
-                  ? 'bg-amber-50/50 dark:bg-amber-900/10 hover:bg-zinc-100 dark:hover:bg-zinc-800'
-                  : 'bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800'"
-            >
-              <span
-                class="text-sm font-semibold tabular-nums"
-                :class="ep.id === episode?.id ? 'text-amber-700 dark:text-amber-400' : episodeScores[ep.id]?.rating > 0 ? 'text-zinc-700 dark:text-zinc-300' : 'text-zinc-400 dark:text-zinc-500'"
-              >{{ String(ep.episode).padStart(2, '0') }}</span>
-              <span
-                v-if="episodeScores[ep.id]?.rating > 0"
-                class="text-[10px] font-bold text-amber-500 mt-0.5 tabular-nums leading-none"
-              >{{ Number(episodeScores[ep.id].rating).toFixed(1) }}</span>
-              <div
-                v-if="episodeScores[ep.id]?.count > 1"
-                class="absolute top-1 right-1.5 text-[9px] text-zinc-400 dark:text-zinc-500 font-medium"
-              >×{{ episodeScores[ep.id].count }}</div>
-            </button>
-          </div>
-        </div>
+        <EpisodeGrid
+          :episodes="episodesStore.episodes"
+          :current-episode-id="episode?.id"
+          :episode-scores="episodeScores"
+          :available-seasons="availableSeasons"
+          :season-label="seasonLabel"
+          v-model:season="rightSeason"
+          @select="selectEpisode"
+        />
       </aside>
     </div>
 
@@ -743,32 +632,35 @@ onBeforeRouteLeave(async (to, from, next) => {
       </div>
     </div>
 
-    <!-- 底部导航 -->
-    <footer class="flex-shrink-0 border-t border-zinc-200/60 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md px-4 py-2.5">
-      <div class="flex items-center justify-center gap-6">
-        <button
-          :disabled="!prevEpisode"
-          @click="jumpToEpisode(prevEpisode)"
-          class="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-all"
-          :class="prevEpisode ? 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 active:scale-95' : 'text-zinc-300 dark:text-zinc-700 cursor-not-allowed'"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-          上一{{ epTerm }}
-        </button>
-
-        <span class="text-xs text-zinc-300 dark:text-zinc-600 select-none">第 {{ episode?.episode }} {{ epTerm }}</span>
-
-        <button
-          :disabled="!nextEpisode"
-          @click="jumpToEpisode(nextEpisode)"
-          class="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-all"
-          :class="nextEpisode ? 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 active:scale-95' : 'text-zinc-300 dark:text-zinc-700 cursor-not-allowed'"
-        >
-          下一{{ epTerm }}
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-        </button>
+    <!-- 移动端底部选集面板 (2.1) -->
+    <Transition name="fade">
+      <div v-if="showSidebarMobile" @click="showSidebarMobile = false" class="fixed inset-0 bg-black/50 z-30 md:hidden"></div>
+    </Transition>
+    <Transition name="slide-up">
+      <div v-if="showSidebarMobile" class="fixed inset-x-0 bottom-0 z-40 max-h-[60vh] bg-white dark:bg-zinc-900 rounded-t-2xl shadow-2xl border-t border-zinc-200 dark:border-zinc-800 overflow-y-auto md:hidden">
+        <div class="flex justify-center pt-2 pb-1">
+          <div class="w-10 h-1 rounded-full bg-zinc-300 dark:bg-zinc-600"></div>
+        </div>
+        <EpisodeGrid
+          :episodes="episodesStore.episodes"
+          :current-episode-id="episode?.id"
+          :episode-scores="episodeScores"
+          :available-seasons="availableSeasons"
+          :season-label="seasonLabel"
+          v-model:season="rightSeason"
+          @select="selectEpisode"
+        />
       </div>
-    </footer>
+    </Transition>
+
+    <!-- 底部导航 -->
+    <BottomNav
+      :prev-episode="prevEpisode"
+      :next-episode="nextEpisode"
+      :current-episode="episode"
+      :ep-term="epTerm"
+      @jump="jumpToEpisode"
+    />
 
     <ConfirmDialog
       :visible="confirmDialog.visible"
@@ -783,16 +675,25 @@ onBeforeRouteLeave(async (to, from, next) => {
 </template>
 
 <style scoped>
-@keyframes slide-up {
-  from { transform: translateY(100%); }
-  to { transform: translateY(0); }
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.25s ease;
 }
-.animate-slide-up {
-  animation: slide-up 0.25s ease-out;
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 
-textarea::placeholder {
-  color: inherit;
-  opacity: 0.4;
+.slide-up-enter-active {
+  transition: transform 0.3s ease-out;
+}
+.slide-up-leave-active {
+  transition: transform 0.2s ease-in;
+}
+.slide-up-enter-from {
+  transform: translateY(100%);
+}
+.slide-up-leave-to {
+  transform: translateY(100%);
 }
 </style>

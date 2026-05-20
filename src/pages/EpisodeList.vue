@@ -1,11 +1,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { supabase } from '../utils/supabase'
 import { useShowsStore } from '../stores/shows'
+import { useEpisodesStore } from '../stores/episodes'
 import { getTerminology } from '../utils/terminology'
 import { findShowCredits } from '../utils/tmdb'
-import { CATEGORIES } from '../db'
+import { parseGenres, categoryLabel, statusLabel, statusColor } from '../utils/helpers'
 import CoverImage from '../components/CoverImage.vue'
 
 const props = defineProps(['toast'])
@@ -26,14 +26,10 @@ const creditsExpanded = ref(false)
 const loadingCredits = ref(false)
 
 const showsStore = useShowsStore()
+const episodesStore = useEpisodesStore()
 
 const showCategory = computed(() => show.value?.category || 'tv')
 const term = computed(() => getTerminology(showCategory.value))
-
-function parseGenres(show) {
-  if (Array.isArray(show.genres)) return show.genres
-  try { return JSON.parse(show.genres) } catch { return [] }
-}
 
 const needsSeasonPrefix = computed(() => seasonKeys.value.length > 1)
 
@@ -101,28 +97,15 @@ onMounted(async () => {
   // 异步加载演职员信息
   loadCredits()
 
-  const { data: eps } = await supabase
-    .from('episodes')
-    .select('*')
-    .eq('show_id', showId)
-    .order('season')
-    .order('episode')
-  episodes.value = eps || []
+  const { episodes: eps, recordsByEpisode } = await episodesStore.fetchEpisodesWithRecords(showId)
+  episodes.value = eps
 
-  const episodeIds = episodes.value.map(e => e.id)
-  if (episodeIds.length > 0) {
-    const { data: records } = await supabase
-      .from('records')
-      .select('*')
-      .in('episode_id', episodeIds)
-
-    recordsMap.value = {}
-    for (const ep of episodes.value) {
-      const epRecords = (records || []).filter(r => r.episode_id === ep.id)
-      const activeRecord = epRecords.find(r => r.id === ep.active_record_id)
-      if (activeRecord) {
-        recordsMap.value[ep.id] = activeRecord
-      }
+  recordsMap.value = {}
+  for (const ep of episodes.value) {
+    const epRecords = recordsByEpisode[ep.id] || []
+    const activeRecord = epRecords.find(r => r.id === ep.active_record_id)
+    if (activeRecord) {
+      recordsMap.value[ep.id] = activeRecord
     }
   }
 
@@ -154,23 +137,6 @@ async function loadCredits() {
   }
 }
 
-function categoryLabel(key) {
-  const cat = CATEGORIES.find(c => c.key === key)
-  return cat ? cat.label : key
-}
-
-function statusLabel(status) {
-  return { want: '想看', watching: '在看', finished: '看完', dropped: '弃坑' }[status] || ''
-}
-
-function statusColor(status) {
-  return {
-    want: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-    watching: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
-    finished: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
-    dropped: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400',
-  }[status] || ''
-}
 
 function goToStats() {
   router.push('/statistics')

@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { collectExportData, importFromData, exportToJSON, importFromJSON, deduplicateShows } from '../utils/exportImport'
+import { collectExportData, importFromData, exportToJSON, exportToMarkdown, importFromJSON, deduplicateShows } from '../utils/exportImport'
 import { useTheme } from '../utils/theme'
 import { useShowsStore } from '../stores/shows'
 import { useAuthStore } from '../stores/auth'
@@ -43,6 +43,11 @@ function saveTasteDiveKey() {
 
 async function handleExport() {
   try { await exportToJSON(); props.toast?.('导出成功', 'success') }
+  catch (e) { props.toast?.('导出失败: ' + e.message, 'error') }
+}
+
+async function handleExportMarkdown() {
+  try { await exportToMarkdown(); props.toast?.('Markdown 导出成功', 'success') }
   catch (e) { props.toast?.('导出失败: ' + e.message, 'error') }
 }
 
@@ -111,6 +116,14 @@ async function handleLogout() {
           >
             导出数据 (JSON)
           </button>
+          <button
+            @click="handleExportMarkdown"
+            class="flex-1 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg text-sm font-medium transition"
+          >
+            导出 (Markdown)
+          </button>
+        </div>
+        <div class="flex gap-2">
           <button
             @click="importInput?.click()"
             class="flex-1 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg text-sm font-medium transition"
