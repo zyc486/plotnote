@@ -51,17 +51,14 @@ const epTerm = computed(() => {
   return getTerminology(cat).episodeLabel
 })
 
-const showPicker = ref(false)
-const pickerSeason = ref(0)
 const showSidebarMobile = ref(false)
 const rightSeason = ref(0)
 const episodeScores = ref({})
-const showRightPanel = ref(true)
 
 const seasonLabel = computed(() => {
   const cat = show.value?.category || 'tv'
   const t = getTerminology(cat)
-  return t.seasonLabel || ''
+  return t.seasonLabel || '季'
 })
 
 const availableSeasons = computed(() => {
@@ -70,11 +67,6 @@ const availableSeasons = computed(() => {
     seasons.add(ep.season)
   }
   return [...seasons].sort((a, b) => a - b)
-})
-
-const episodesInPickerSeason = computed(() => {
-  if (!pickerSeason.value) return []
-  return episodesStore.episodes.filter(e => e.season === pickerSeason.value)
 })
 
 let skipWatchers = false
@@ -425,15 +417,7 @@ function goBack() {
   else router.push('/')
 }
 
-function openPicker() {
-  if (episode.value) {
-    pickerSeason.value = episode.value.season
-  }
-  showPicker.value = true
-}
-
 function selectEpisode(ep) {
-  showPicker.value = false
   jumpToEpisode(ep)
 }
 
@@ -614,8 +598,8 @@ onBeforeRouteLeave(async (to, from, next) => {
       </aside>
 
       <!-- 主编辑区 -->
-      <main class="flex-1 flex flex-col min-w-0 overflow-y-auto">
-        <div class="flex-1 flex flex-col p-4 md:p-8 max-w-3xl">
+      <main class="flex-1 flex flex-col min-w-0">
+        <div class="flex-1 flex flex-col p-4 md:p-8">
           <!-- 标签 -->
           <div class="mb-5">
             <TagSelector v-model="tags" />
@@ -635,11 +619,11 @@ onBeforeRouteLeave(async (to, from, next) => {
               v-if="!showPreview"
               v-model="review"
               placeholder="写下你的想法..."
-              class="flex-1 min-h-[200px] md:min-h-[280px] w-full bg-white dark:bg-zinc-900 rounded-2xl px-5 py-4 outline-none resize-none border border-zinc-200/60 dark:border-zinc-800 text-sm md:text-base leading-relaxed text-zinc-800 dark:text-zinc-200 placeholder-zinc-300 dark:placeholder-zinc-600 focus:ring-2 focus:ring-amber-300 dark:focus:ring-amber-800 transition-shadow"
+              class="flex-1 min-h-[200px] w-full bg-white dark:bg-zinc-900 rounded-2xl px-5 py-4 outline-none resize-none border border-zinc-200/60 dark:border-zinc-800 text-sm md:text-base leading-relaxed text-zinc-800 dark:text-zinc-200 placeholder-zinc-300 dark:placeholder-zinc-600 focus:ring-2 focus:ring-amber-300 dark:focus:ring-amber-800 transition-shadow"
             ></textarea>
             <div
               v-else
-              class="flex-1 min-h-[200px] md:min-h-[280px] w-full bg-white dark:bg-zinc-900 rounded-2xl px-5 py-4 border border-zinc-200/60 dark:border-zinc-800 text-sm md:text-base leading-relaxed overflow-y-auto markdown-body text-zinc-800 dark:text-zinc-200"
+              class="flex-1 min-h-[200px] w-full bg-white dark:bg-zinc-900 rounded-2xl px-5 py-4 border border-zinc-200/60 dark:border-zinc-800 text-sm md:text-base leading-relaxed overflow-y-auto markdown-body text-zinc-800 dark:text-zinc-200"
               v-html="renderMarkdown(review || '*暂无感想*')"
             ></div>
             <p class="text-[10px] text-zinc-300 dark:text-zinc-600 mt-2">支持 Markdown · 停止输入后自动保存</p>
@@ -653,55 +637,53 @@ onBeforeRouteLeave(async (to, from, next) => {
       </main>
 
       <!-- 右侧选集面板 -->
-      <aside class="w-48 flex-shrink-0 border-l border-zinc-200/60 dark:border-zinc-800 overflow-hidden flex flex-col hidden xl:flex" :class="{ '!hidden': !showRightPanel }">
-        <div class="flex items-center justify-between px-3 py-2.5 border-b border-zinc-200/60 dark:border-zinc-800">
-          <span class="text-[10px] text-zinc-400 dark:text-zinc-500 uppercase tracking-wider font-medium">选集</span>
-          <button @click="showRightPanel = false" class="text-zinc-300 hover:text-zinc-500 dark:text-zinc-600 dark:hover:text-zinc-400 text-xs leading-none">×</button>
+      <aside
+        class="w-56 xl:w-60 flex-shrink-0 border-l border-zinc-200/60 dark:border-zinc-800 overflow-hidden flex flex-col"
+        :class="{ 'hidden xl:flex': !showSidebarMobile, 'flex': showSidebarMobile }"
+      >
+        <div class="flex items-center justify-between px-3 py-2.5 border-b border-zinc-200/60 dark:border-zinc-800 flex-shrink-0">
+          <span class="text-[11px] text-zinc-400 dark:text-zinc-500 tracking-wider font-medium uppercase">选集</span>
+          <button @click="showSidebarMobile = !showSidebarMobile" class="xl:hidden text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 text-xs">×</button>
         </div>
 
         <!-- 季标签 -->
-        <div v-if="availableSeasons.length > 1" class="flex gap-0.5 px-2 py-1.5 border-b border-zinc-100 dark:border-zinc-800 overflow-x-auto">
+        <div v-if="availableSeasons.length > 1" class="flex gap-1 px-3 py-2 flex-shrink-0 overflow-x-auto border-b border-zinc-100 dark:border-zinc-800/50">
           <button
             v-for="s in availableSeasons" :key="s"
             @click="rightSeason = s"
-            class="px-2 py-0.5 text-[10px] rounded-md font-medium transition-colors whitespace-nowrap flex-shrink-0"
+            class="px-2.5 py-1 text-[11px] rounded-lg font-medium transition-colors whitespace-nowrap flex-shrink-0"
             :class="rightSeason === s ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 dark:text-zinc-500'"
-          >S{{ s }}</button>
+          >第{{ s }}{{ seasonLabel || '季' }}</button>
         </div>
 
-        <!-- 集数列表 -->
-        <div class="flex-1 overflow-y-auto">
-          <template v-for="ep in episodesStore.episodes.filter(e => rightSeason === 0 || e.season === rightSeason)" :key="ep.id">
+        <!-- 集数卡片网格 -->
+        <div class="flex-1 overflow-y-auto p-3">
+          <div class="grid grid-cols-4 gap-2">
             <button
+              v-for="ep in episodesStore.episodes.filter(e => rightSeason === 0 || e.season === rightSeason)" :key="ep.id"
               :id="`ep-nav-${ep.id}`"
               @click="selectEpisode(ep)"
-              class="w-full flex items-center gap-2.5 px-3 py-2 transition-colors text-left group"
+              class="relative aspect-square rounded-xl flex flex-col items-center justify-center transition-all duration-200 active:scale-95"
               :class="ep.id === episode?.id
-                ? 'bg-amber-50 dark:bg-amber-900/20 border-l-2 border-amber-400'
-                : 'border-l-2 border-transparent hover:bg-zinc-50 dark:hover:bg-zinc-800/50'"
+                ? 'bg-amber-100 dark:bg-amber-900/30 ring-2 ring-amber-400 dark:ring-amber-500 shadow-sm'
+                : episodeScores[ep.id]?.rating > 0
+                  ? 'bg-amber-50/50 dark:bg-amber-900/10 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                  : 'bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800'"
             >
               <span
-                class="text-xs font-medium tabular-nums w-5 text-right flex-shrink-0"
-                :class="ep.id === episode?.id ? 'text-amber-600 dark:text-amber-400' : 'text-zinc-500 dark:text-zinc-400'"
+                class="text-sm font-semibold tabular-nums"
+                :class="ep.id === episode?.id ? 'text-amber-700 dark:text-amber-400' : episodeScores[ep.id]?.rating > 0 ? 'text-zinc-700 dark:text-zinc-300' : 'text-zinc-400 dark:text-zinc-500'"
               >{{ String(ep.episode).padStart(2, '0') }}</span>
               <span
                 v-if="episodeScores[ep.id]?.rating > 0"
-                class="text-[11px] font-bold text-amber-500 tabular-nums"
+                class="text-[10px] font-bold text-amber-500 mt-0.5 tabular-nums leading-none"
               >{{ Number(episodeScores[ep.id].rating).toFixed(1) }}</span>
-              <span
-                v-else-if="episodeScores[ep.id]?.count > 0"
-                class="text-[11px] text-zinc-300 dark:text-zinc-600"
-              >—</span>
-              <span
-                v-else
-                class="text-[11px] text-zinc-200 dark:text-zinc-700 opacity-0 group-hover:opacity-100 transition-opacity tabular-nums"
-              >—</span>
-              <span
+              <div
                 v-if="episodeScores[ep.id]?.count > 1"
-                class="text-[9px] text-zinc-300 dark:text-zinc-600 ml-auto"
-              >×{{ episodeScores[ep.id].count }}</span>
+                class="absolute top-1 right-1.5 text-[9px] text-zinc-400 dark:text-zinc-500 font-medium"
+              >×{{ episodeScores[ep.id].count }}</div>
             </button>
-          </template>
+          </div>
         </div>
       </aside>
     </div>
@@ -717,75 +699,30 @@ onBeforeRouteLeave(async (to, from, next) => {
 
     <!-- 底部导航 -->
     <footer class="flex-shrink-0 border-t border-zinc-200/60 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md px-4 py-2.5">
-      <div class="max-w-3xl mx-auto flex items-center justify-between">
+      <div class="flex items-center justify-center gap-6">
         <button
           :disabled="!prevEpisode"
           @click="jumpToEpisode(prevEpisode)"
-          class="flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-medium transition-all"
+          class="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-all"
           :class="prevEpisode ? 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 active:scale-95' : 'text-zinc-300 dark:text-zinc-700 cursor-not-allowed'"
         >
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
           上一{{ epTerm }}
         </button>
 
-        <button
-          @click="openPicker"
-          class="text-xs text-zinc-500 dark:text-zinc-400 hover:text-amber-500 dark:hover:text-amber-400 transition-colors px-4 py-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800"
-        >
-          第 {{ episode?.episode }} {{ epTerm }}
-        </button>
+        <span class="text-xs text-zinc-300 dark:text-zinc-600 select-none">第 {{ episode?.episode }} {{ epTerm }}</span>
 
         <button
           :disabled="!nextEpisode"
           @click="jumpToEpisode(nextEpisode)"
-          class="flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-medium transition-all"
+          class="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-all"
           :class="nextEpisode ? 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 active:scale-95' : 'text-zinc-300 dark:text-zinc-700 cursor-not-allowed'"
         >
           下一{{ epTerm }}
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
         </button>
       </div>
     </footer>
-
-    <!-- 集数选择弹窗 -->
-    <div
-      v-if="showPicker"
-      class="fixed inset-0 bg-black/50 flex items-end justify-center z-50"
-      @click.self="showPicker = false"
-    >
-      <div class="bg-white dark:bg-zinc-900 rounded-t-2xl w-full max-w-lg max-h-[70vh] flex flex-col animate-slide-up">
-        <div class="flex items-center justify-between px-5 py-4 border-b border-zinc-200/60 dark:border-zinc-800">
-          <h3 class="font-medium text-zinc-800 dark:text-zinc-200">快速跳转</h3>
-          <button @click="showPicker = false" class="w-7 h-7 rounded-full flex items-center justify-center text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">✕</button>
-        </div>
-        <div class="px-5 py-3 border-b border-zinc-200/60 dark:border-zinc-800 overflow-x-auto">
-          <div class="flex items-center gap-1.5">
-            <button
-              v-for="s in availableSeasons" :key="s"
-              @click="pickerSeason = s"
-              class="px-3 py-1.5 text-xs rounded-lg transition-colors font-medium whitespace-nowrap"
-              :class="pickerSeason === s ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 dark:text-zinc-400'"
-            >
-              第{{ s }}{{ seasonLabel }}
-            </button>
-          </div>
-        </div>
-        <div class="flex-1 overflow-y-auto p-4">
-          <div class="grid grid-cols-5 gap-2">
-            <button
-              v-for="ep in episodesInPickerSeason" :key="ep.id"
-              @click="selectEpisode(ep)"
-              class="py-3 rounded-xl text-sm font-medium transition-all active:scale-95"
-              :class="ep.id === episode?.id
-                ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 shadow-sm'
-                : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'"
-            >
-              {{ ep.episode }}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <ConfirmDialog
       :visible="confirmDialog.visible"
