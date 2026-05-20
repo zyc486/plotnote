@@ -36,6 +36,7 @@ const showPreview = ref(false)
 const confirmDialog = ref({ visible: false, title: '', message: '', onConfirm: null })
 const externalRatings = ref(null)
 const loadingRatings = ref(false)
+const textareaRef = ref(null)
 
 const recordsStore = useRecordsStore()
 const episodesStore = useEpisodesStore()
@@ -420,6 +421,39 @@ function selectEpisode(ep) {
   jumpToEpisode(ep)
 }
 
+function insertFmt(prefix, suffix = '') {
+  const ta = textareaRef.value
+  if (!ta || showPreview.value) return
+  const start = ta.selectionStart
+  const end = ta.selectionEnd
+  const before = review.value.slice(0, start)
+  const selected = review.value.slice(start, end)
+  const after = review.value.slice(end)
+  review.value = before + prefix + selected + suffix + after
+  dirty.value = true
+  nextTick(() => {
+    ta.focus()
+    const newCursor = start + prefix.length + selected.length + suffix.length
+    ta.setSelectionRange(newCursor, newCursor)
+  })
+}
+
+function insertLine(prefix) {
+  const ta = textareaRef.value
+  if (!ta || showPreview.value) return
+  const start = ta.selectionStart
+  const before = review.value.slice(0, start)
+  const after = review.value.slice(start)
+  const needsNewline = before.length > 0 && !before.endsWith('\n')
+  review.value = before + (needsNewline ? '\n' : '') + prefix + after
+  dirty.value = true
+  nextTick(() => {
+    ta.focus()
+    const newPos = start + prefix.length + (needsNewline ? 1 : 0)
+    ta.setSelectionRange(newPos, newPos)
+  })
+}
+
 function formatDate(ts) {
   if (!ts) return ''
   const d = new Date(ts)
@@ -609,8 +643,26 @@ onBeforeRouteLeave(async (to, from, next) => {
               </div>
             </div>
 
+            <!-- 格式工具栏 -->
+            <div v-if="!showPreview" class="flex items-center gap-0.5 mb-2 flex-wrap">
+              <button @click="insertFmt('**', '**')" title="加粗" class="w-7 h-7 flex items-center justify-center rounded-md text-xs font-bold text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">B</button>
+              <button @click="insertFmt('*', '*')" title="斜体" class="w-7 h-7 flex items-center justify-center rounded-md text-xs italic text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors font-serif">I</button>
+              <button @click="insertFmt('~~', '~~')" title="删除线" class="w-7 h-7 flex items-center justify-center rounded-md text-xs line-through text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">S</button>
+              <span class="w-px h-4 bg-zinc-200 dark:bg-zinc-700 mx-0.5"></span>
+              <button @click="insertLine('# ')" title="标题1" class="w-7 h-7 flex items-center justify-center rounded-md text-xs font-bold text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">H₁</button>
+              <button @click="insertLine('## ')" title="标题2" class="w-7 h-7 flex items-center justify-center rounded-md text-xs font-bold text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">H₂</button>
+              <span class="w-px h-4 bg-zinc-200 dark:bg-zinc-700 mx-0.5"></span>
+              <button @click="insertLine('> ')" title="引用" class="w-7 h-7 flex items-center justify-center rounded-md text-xs text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">❝</button>
+              <button @click="insertLine('- ')" title="列表" class="w-7 h-7 flex items-center justify-center rounded-md text-xs text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">≡</button>
+              <button @click="insertLine('---')" title="分割线" class="w-7 h-7 flex items-center justify-center rounded-md text-xs text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">—</button>
+              <span class="w-px h-4 bg-zinc-200 dark:bg-zinc-700 mx-0.5"></span>
+              <button @click="insertFmt('[', '](url)')" title="链接" class="w-7 h-7 flex items-center justify-center rounded-md text-xs text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">🔗</button>
+              <button @click="insertFmt('`', '`')" title="行内代码" class="w-7 h-7 flex items-center justify-center rounded-md text-xs text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors font-mono">&lt;/&gt;</button>
+            </div>
+
             <textarea
               v-if="!showPreview"
+              ref="textareaRef"
               v-model="review"
               placeholder="写下你的想法..."
               class="flex-1 min-h-[360px] w-full bg-white dark:bg-zinc-900 rounded-2xl px-5 py-4 outline-none resize-none border border-zinc-200/60 dark:border-zinc-800 text-sm md:text-base leading-relaxed text-zinc-800 dark:text-zinc-200 placeholder-zinc-300 dark:placeholder-zinc-600 focus:ring-2 focus:ring-amber-300 dark:focus:ring-amber-800 transition-shadow"
