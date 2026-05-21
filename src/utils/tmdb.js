@@ -168,13 +168,14 @@ export async function getMovieCredits(movieId) {
     const data = await res.json()
     const profileSize = 'w185'
     return {
-      cast: (data.cast || []).slice(0, 12).map(p => ({
+      cast: (data.cast || []).slice(0, 7).map(p => ({
         name: p.name || '',
         character: p.character || '',
         profile: p.profile_path ? `https://image.tmdb.org/t/p/${profileSize}${p.profile_path}` : null,
       })),
       crew: (data.crew || [])
-        .filter(p => ['Director', 'Writer', 'Screenplay', 'Producer', 'Executive Producer'].includes(p.job))
+        .filter(p => p.job === 'Director')
+        .slice(0, 1)
         .map(p => ({
           name: p.name || '',
           job: p.job || '',
@@ -196,21 +197,12 @@ export async function getTvCredits(tvId) {
     const data = await res.json()
     const profileSize = 'w185'
     return {
-      cast: (data.cast || []).slice(0, 12).map(p => ({
+      cast: (data.cast || []).slice(0, 8).map(p => ({
         name: p.name || '',
         character: (p.roles || []).map(r => r.character).filter(Boolean).join(' / '),
         profile: p.profile_path ? `https://image.tmdb.org/t/p/${profileSize}${p.profile_path}` : null,
       })),
-      crew: (data.crew || [])
-        .filter(p => {
-          const jobs = (p.jobs || []).map(j => j.job)
-          return jobs.some(j => ['Director', 'Writer', 'Screenplay', 'Producer', 'Executive Producer', 'Creator'].includes(j))
-        })
-        .map(p => ({
-          name: p.name || '',
-          job: (p.jobs || []).map(j => j.job).filter(j => ['Director', 'Writer', 'Screenplay', 'Producer', 'Executive Producer', 'Creator'].includes(j))[0] || '',
-          profile: p.profile_path ? `https://image.tmdb.org/t/p/${profileSize}${p.profile_path}` : null,
-        })),
+      crew: [],
     }
   } catch {
     return { cast: [], crew: [] }
