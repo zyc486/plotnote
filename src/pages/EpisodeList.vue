@@ -117,9 +117,6 @@ onMounted(async () => {
     }
   }
 
-  if (episodes.value.length === 1) {
-    router.replace(`/episode/${episodes.value[0].id}`)
-  }
 })
 
 onUnmounted(() => {
