@@ -70,6 +70,9 @@ const confirmDialog = ref({ visible: false, title: '', message: '', onConfirm: n
 const randomReviewRef = ref(null)
 const milestoneRef = ref(null)
 
+const multiSelectMode = ref(false)
+const selectedShowIds = ref(new Set())
+
 function checkMilestones() {
   const seenKey = 'plotnote_milestones_seen'
   const seen = JSON.parse(localStorage.getItem(seenKey) || '{}')
@@ -363,6 +366,73 @@ function goToShow(id) { router.push(`/show/${id}`) }
 function goToStats() { router.push('/statistics') }
 function goToSearch() { router.push('/search') }
 function openRandomReview() { randomReviewRef.value?.pickRandom() }
+
+function toggleMultiSelect() {
+  multiSelectMode.value = !multiSelectMode.value
+  if (!multiSelectMode.value) selectedShowIds.value = new Set()
+}
+
+function toggleShowSelect(showId) {
+  const s = new Set(selectedShowIds.value)
+  if (s.has(showId)) s.delete(showId)
+  else s.add(showId)
+  selectedShowIds.value = s
+}
+
+function selectAll() {
+  const ids = []
+  for (const item of displayItems.value) {
+    if (item.type === 'show') {
+      ids.push(item.show.id)
+    } else if (item.type === 'series') {
+      ids.push(...item.shows.map(s => s.id))
+    }
+  }
+  selectedShowIds.value = new Set(ids)
+}
+
+function deselectAll() {
+  selectedShowIds.value = new Set()
+}
+
+async function batchDelete() {
+  const count = selectedShowIds.value.size
+  if (count === 0) return
+  confirmDialog.value = {
+    visible: true,
+    title: '批量删除',
+    message: `确定删除选中的 ${count} 个条目？此操作不可撤销。`,
+    onConfirm: async () => {
+      for (const id of selectedShowIds.value) {
+        await store.deleteShow(id)
+      }
+      selectedShowIds.value = new Set()
+      multiSelectMode.value = false
+      props.toast?.(`已删除 ${count} 个条目`, 'success')
+    },
+  }
+}
+
+async function batchChangeStatus(status) {
+  const count = selectedShowIds.value.size
+  if (count === 0) return
+  for (const id of selectedShowIds.value) {
+    await store.updateShowStatus(id, status)
+  }
+  const label = SHOW_STATUSES.find(s => s.key === status)?.label || status
+  props.toast?.(`已将 ${count} 个条目设为「${label}」`, 'success')
+}
+
+async function batchChangeCategory(category) {
+  const count = selectedShowIds.value.size
+  if (count === 0) return
+  for (const id of selectedShowIds.value) {
+    await store.updateShowMeta(id, { category })
+  }
+  await store.fetchShows()
+  const label = CATEGORIES.find(c => c.key === category)?.label || category
+  props.toast?.(`已将 ${count} 个条目改为「${label}」`, 'success')
+}
 
 async function handleDelete(id, e) {
   e.stopPropagation()
@@ -664,10 +734,26 @@ const manualItemLabel = computed(() => {
       <button @click="sortBy = 'avgRating'" class="px-2.5 py-1 text-xs rounded-full transition" :class="sortBy === 'avgRating' ? 'bg-gray-800 text-white dark:bg-indigo-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'">评分</button>
       <button @click="sortBy = 'lastWatchedAt'" class="px-2.5 py-1 text-xs rounded-full transition" :class="sortBy === 'lastWatchedAt' ? 'bg-gray-800 text-white dark:bg-indigo-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'">最近观看</button>
       <span class="flex-1"></span>
+      <button @click="toggleMultiSelect" class="px-2.5 py-1 text-xs rounded-full transition" :class="multiSelectMode ? 'bg-indigo-500 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'">{{ multiSelectMode ? '取消多选' : '多选' }}</button>
       <button v-if="store.shows.some(s => !s.coverImage)" @click="fetchMissingCovers" :disabled="fetchingCovers" class="px-2.5 py-1 text-xs rounded-full transition flex items-center gap-1" :class="fetchingCovers ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 cursor-not-allowed' : 'bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'">
         <span v-if="fetchingCovers" class="inline-block animate-spin rounded-full h-3 w-3 border border-gray-400 border-t-transparent"></span>
         {{ fetchingCovers ? '补全中...' : '补全封面' }}
       </button>
+    </div>
+
+    <!-- 批量操作栏 -->
+    <div v-if="multiSelectMode" class="flex flex-wrap items-center gap-2 mb-4 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+      <span class="text-xs text-gray-500 dark:text-gray-400">已选 {{ selectedShowIds.size }} 项</span>
+      <button @click="selectAll" class="text-xs text-indigo-500 hover:text-indigo-600 dark:text-indigo-400">全选</button>
+      <button @click="deselectAll" class="text-xs text-gray-500 hover:text-gray-600 dark:text-gray-400">取消全选</button>
+      <span class="text-gray-300 dark:text-gray-600">|</span>
+      <button @click="batchDelete" :disabled="selectedShowIds.size === 0" class="text-xs px-2 py-1 rounded bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 disabled:opacity-40 disabled:cursor-not-allowed">删除</button>
+      <span class="text-gray-300 dark:text-gray-600">|</span>
+      <span class="text-xs text-gray-400">状态:</span>
+      <button v-for="st in SHOW_STATUSES" :key="st.key" @click="batchChangeStatus(st.key)" :disabled="selectedShowIds.size === 0" class="text-xs px-2 py-1 rounded bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed">{{ st.label }}</button>
+      <span class="text-gray-300 dark:text-gray-600">|</span>
+      <span class="text-xs text-gray-400">类型:</span>
+      <button v-for="cat in CATEGORIES" :key="cat.key" @click="batchChangeCategory(cat.key)" :disabled="selectedShowIds.size === 0" class="text-xs px-2 py-1 rounded bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed">{{ cat.label }}</button>
     </div>
 
     <div v-if="store.loading" class="text-center text-gray-400 dark:text-gray-500 py-12">加载中...</div>
@@ -685,11 +771,14 @@ const manualItemLabel = computed(() => {
           v-if="item.type === 'show'"
           :show="item.show"
           :status-dropdown-id="statusDropdownId"
+          :selectable="multiSelectMode"
+          :selected="selectedShowIds.has(item.show.id)"
           @go-to="goToShow"
           @edit="openEditMeta"
           @delete="handleDelete"
           @toggle-status="toggleStatusDropdown"
           @change-status="quickChangeStatus"
+          @toggle-select="toggleShowSelect"
         />
         <SeriesCard
           v-else
@@ -714,11 +803,14 @@ const manualItemLabel = computed(() => {
             :key="show.id"
             :show="{ ...show, coverImage: show.cover_image || show.coverImage }"
             :status-dropdown-id="statusDropdownId"
+            :selectable="multiSelectMode"
+            :selected="selectedShowIds.has(show.id)"
             @go-to="goToShow"
             @edit="openEditMeta"
             @delete="handleDelete"
             @toggle-status="toggleStatusDropdown"
             @change-status="quickChangeStatus"
+            @toggle-select="toggleShowSelect"
           />
         </div>
       </div>
