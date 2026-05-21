@@ -10,7 +10,7 @@ const emit = defineEmits(['jump'])
 </script>
 
 <template>
-  <footer class="flex-shrink-0 border-t border-zinc-200/60 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md px-4 py-2.5">
+  <footer class="flex-shrink-0 border-t border-zinc-200/60 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md px-4 pt-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))]">
     <div class="flex items-center justify-center gap-6">
       <button
         :disabled="!prevEpisode"

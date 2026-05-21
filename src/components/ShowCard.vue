@@ -19,7 +19,7 @@ const progress = computed(() => progressLabel(props.show))
   <div @click="selectable ? emit('toggleSelect', show.id) : emit('goTo', show.id)" class="group cursor-pointer">
     <div class="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-800 mb-2">
       <div v-if="selectable" class="absolute top-1.5 right-1.5 z-10">
-        <div class="w-5 h-5 rounded border-2 flex items-center justify-center transition" :class="selected ? 'bg-indigo-500 border-indigo-500' : 'bg-white/80 border-gray-400 dark:bg-gray-800/80'">
+        <div class="w-6 h-6 rounded border-2 flex items-center justify-center transition" :class="selected ? 'bg-indigo-500 border-indigo-500' : 'bg-white/80 border-gray-400 dark:bg-gray-800/80'">
           <svg v-if="selected" class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
         </div>
       </div>
@@ -45,10 +45,10 @@ const progress = computed(() => progressLabel(props.show))
         @toggle="emit('toggleStatus', $event)"
         @change="emit('changeStatus', $event)"
       />
-      <div @click.stop class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+      <div @click.stop class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200">
         <div class="flex justify-end gap-1.5">
-          <button @click.stop="emit('edit', show, $event)" class="w-7 h-7 rounded-full bg-white/20 hover:bg-white/40 text-white text-xs flex items-center justify-center transition">编辑</button>
-          <button @click.stop="emit('delete', show.id, $event)" class="w-7 h-7 rounded-full bg-red-500/60 hover:bg-red-500/80 text-white text-xs flex items-center justify-center transition">删</button>
+          <button @click.stop="emit('edit', show, $event)" class="w-8 h-8 rounded-full bg-white/20 hover:bg-white/40 text-white text-xs flex items-center justify-center transition">编辑</button>
+          <button @click.stop="emit('delete', show.id, $event)" class="w-8 h-8 rounded-full bg-red-500/60 hover:bg-red-500/80 text-white text-xs flex items-center justify-center transition">删</button>
         </div>
       </div>
     </div>

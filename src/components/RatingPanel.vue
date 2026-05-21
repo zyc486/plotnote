@@ -18,7 +18,7 @@ const props = defineProps({ animation: Boolean })
       <button
         v-for="star in 5" :key="star"
         @click="rating = star * 2"
-        class="text-2xl transition-all duration-150 hover:scale-110"
+        class="w-10 h-10 flex items-center justify-center text-2xl transition-all duration-150 hover:scale-110"
         :class="rating >= star * 2 ? 'text-amber-400' : 'text-zinc-200 dark:text-zinc-700'"
       >★</button>
     </div>
@@ -36,7 +36,7 @@ const props = defineProps({ animation: Boolean })
       <button
         v-for="n in [0,2,4,6,8,10]" :key="n"
         @click="rating = n"
-        class="w-8 h-6 rounded-md text-[10px] font-medium transition-colors"
+        class="flex-1 h-8 rounded-md text-xs font-medium transition-colors"
         :class="rating === n ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 dark:text-zinc-500'"
       >{{ n }}</button>
       <input

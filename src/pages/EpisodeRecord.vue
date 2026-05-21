@@ -527,7 +527,7 @@ onBeforeRouteLeave(async (to, from, next) => {
 </script>
 
 <template>
-  <div class="h-screen flex flex-col bg-zinc-50 dark:bg-zinc-950">
+  <div class="h-[100dvh] flex flex-col bg-zinc-50 dark:bg-zinc-950">
     <!-- 顶栏 -->
     <header class="flex items-center justify-between px-5 py-3 flex-shrink-0">
       <button @click="goBack" class="flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors">

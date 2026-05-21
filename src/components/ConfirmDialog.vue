@@ -40,8 +40,8 @@ watch(() => props.visible, (val) => {
         <h3 class="text-lg font-medium mb-2">{{ title }}</h3>
         <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">{{ message }}</p>
         <div class="flex gap-3 justify-end">
-          <button @click="onCancel" class="px-4 py-2 rounded-lg text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition">{{ cancelText }}</button>
-          <button @click="onConfirm" class="px-4 py-2 rounded-lg text-sm font-medium transition" :class="danger ? 'bg-red-600 hover:bg-red-500 text-white' : 'bg-gray-800 hover:bg-gray-700 text-white dark:bg-indigo-600 dark:hover:bg-indigo-500'">{{ confirmText }}</button>
+          <button @click="onCancel" class="px-4 py-2.5 rounded-lg text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition">{{ cancelText }}</button>
+          <button @click="onConfirm" class="px-4 py-2.5 rounded-lg text-sm font-medium transition" :class="danger ? 'bg-red-600 hover:bg-red-500 text-white' : 'bg-gray-800 hover:bg-gray-700 text-white dark:bg-indigo-600 dark:hover:bg-indigo-500'">{{ confirmText }}</button>
         </div>
       </div>
     </div>
