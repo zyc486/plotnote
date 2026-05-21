@@ -508,7 +508,7 @@ export async function searchGames(query) {
         id: g.id,
         steamAppID: String(g.id),
         name: g.name || '',
-        image: g.tiny_image || `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${g.id}/header.jpg`,
+        image: `https://cdn.akamai.steamstatic.com/steam/apps/${g.id}/library_600x900.jpg`,
         genres: [],
         platforms: platformNames,
       }
@@ -533,7 +533,7 @@ export async function getGameDetails(gameId) {
       id: gameId,
       name: info.name || '',
       steamAppID: String(gameId),
-      image: info.header_image || `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${gameId}/header.jpg`,
+      image: `https://cdn.akamai.steamstatic.com/steam/apps/${gameId}/library_600x900.jpg`,
       developers: info.developers || [],
       publishers: info.publishers || [],
       genres: (info.genres || []).map(g => g.description).filter(Boolean),
