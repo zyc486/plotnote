@@ -1,10 +1,8 @@
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { useTheme } from './utils/theme'
 import Toast from './components/Toast.vue'
 
-const router = useRouter()
 const toastRef = ref(null)
 const { isDark, toggleTheme } = useTheme()
 

@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { collectExportData, importFromData, exportToJSON, exportToMarkdown, importFromJSON, deduplicateShows } from '../utils/exportImport'
+import { importDoubanData, fixBookCovers, setImportProgressCallback } from '../utils/doubanImport'
 import { useTheme } from '../utils/theme'
 import { useShowsStore } from '../stores/shows'
 import { useAuthStore } from '../stores/auth'
@@ -16,6 +17,11 @@ const authStore = useAuthStore()
 const { isDark, toggleTheme } = useTheme()
 
 const importInput = ref(null)
+const doubanImporting = ref(false)
+const doubanProgress = ref('')
+const doubanPercent = ref(0)
+const doubanResult = ref(null)
+const fixingCovers = ref(false)
 const tmdbKeyInput = ref('')
 const omdbKeyInput = ref('')
 const tasteDiveKeyInput = ref('')
@@ -60,6 +66,36 @@ async function handleImport(event) {
     props.toast?.(`导入成功: ${r.shows}部, ${r.episodes}条, ${r.records}条记录`, 'success')
   } catch (e) { props.toast?.('导入失败: ' + e.message, 'error') }
   event.target.value = ''
+}
+
+async function handleDoubanImport() {
+  doubanImporting.value = true
+  doubanProgress.value = '正在加载数据...'
+  doubanPercent.value = 0
+  doubanResult.value = null
+
+  setImportProgressCallback((msg, pct) => {
+    doubanProgress.value = msg
+    doubanPercent.value = pct
+  })
+
+  try {
+    const res = await fetch('/douban_data.json')
+    if (!res.ok) throw new Error('找不到导入数据文件，请先运行解析脚本')
+    const data = await res.json()
+
+    doubanProgress.value = '开始导入...'
+    const result = await importDoubanData(data)
+    doubanResult.value = result
+    await store.fetchShows()
+    props.toast?.(`导入完成: ${result.tv}部剧集, ${result.movie}部电影, ${result.book}本书`, 'success')
+  } catch (e) {
+    props.toast?.('导入失败: ' + e.message, 'error')
+    doubanResult.value = { error: e.message }
+  } finally {
+    doubanImporting.value = false
+    setImportProgressCallback(null)
+  }
 }
 
 async function handleDeduplicate() {
@@ -139,6 +175,42 @@ async function handleLogout() {
           清理重复数据
         </button>
         <p class="text-xs text-gray-500 dark:text-gray-400">如果因多次同步导致数据重复，点击此按钮清理（保留最新版本）</p>
+      </div>
+    </section>
+
+    <!-- 豆瓣导入 -->
+    <section class="bg-gray-100 dark:bg-gray-800 rounded-2xl p-6 mb-6">
+      <h2 class="text-lg font-semibold mb-4">豆瓣数据导入</h2>
+      <div class="space-y-3">
+        <p class="text-sm text-gray-500 dark:text-gray-400">将豆瓣导出的观影数据导入 PlotNote，会自动搜索封面和集数信息。</p>
+        <button
+          @click="handleDoubanImport"
+          :disabled="doubanImporting"
+          class="w-full px-4 py-2 rounded-lg text-sm font-medium transition"
+          :class="doubanImporting ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-500 text-white'"
+        >
+          {{ doubanImporting ? '导入中...' : '开始导入豆瓣数据' }}
+        </button>
+        <div v-if="doubanImporting" class="space-y-2">
+          <div class="flex items-center gap-2">
+            <div class="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+              <div class="h-full bg-emerald-500 rounded-full transition-all duration-300" :style="{ width: doubanPercent + '%' }"></div>
+            </div>
+            <span class="text-xs text-gray-500 dark:text-gray-400 w-10 text-right">{{ doubanPercent }}%</span>
+          </div>
+          <p class="text-xs text-gray-500 dark:text-gray-400">{{ doubanProgress }}</p>
+        </div>
+        <div v-if="doubanResult && !doubanResult.error" class="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-3 text-sm">
+          <p class="font-medium text-emerald-700 dark:text-emerald-300 mb-1">导入完成</p>
+          <p class="text-emerald-600 dark:text-emerald-400 text-xs">
+            电视剧 {{ doubanResult.tv }} 部 · 电影 {{ doubanResult.movie }} 部 · 图书 {{ doubanResult.book }} 本
+            <span v-if="doubanResult.skipped > 0"> · 跳过 {{ doubanResult.skipped }} 条（已存在）</span>
+          </p>
+          <p v-if="doubanResult.errors?.length > 0" class="text-red-500 text-xs mt-1">{{ doubanResult.errors.length }} 条导入失败</p>
+        </div>
+        <div v-if="doubanResult?.error" class="bg-red-50 dark:bg-red-900/20 rounded-lg p-3 text-sm text-red-600 dark:text-red-400">
+          {{ doubanResult.error }}
+        </div>
       </div>
     </section>
 
@@ -250,7 +322,7 @@ async function handleLogout() {
         </div>
 
         <!-- TasteDve（推荐） -->
-        <div>
+        <div class="mb-5">
           <div class="flex items-center gap-2 mb-2">
             <h4 class="text-sm text-gray-600 dark:text-gray-400">TasteDive API Key</h4>
             <span v-if="hasTasteDiveKey()" class="px-2 py-0.5 text-xs rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">✓ 已配置</span>

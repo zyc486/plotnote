@@ -1,4 +1,6 @@
 <script setup>
+import { computed } from 'vue'
+
 const props = defineProps({
   episodes: { type: Array, default: () => [] },
   currentEpisodeId: Number,
@@ -14,8 +16,6 @@ const filteredEpisodes = computed(() => {
   if (rightSeason.value === 0) return props.episodes
   return props.episodes.filter(e => e.season === rightSeason.value)
 })
-
-import { computed } from 'vue'
 </script>
 
 <template>

@@ -1,4 +1,6 @@
 <script setup>
+import { watch } from 'vue'
+
 const props = defineProps({
   visible: Boolean,
   title: { type: String, default: '确认操作' },
@@ -17,11 +19,23 @@ function onConfirm() {
 function onCancel() {
   emit('cancel')
 }
+
+function onKeydown(e) {
+  if (e.key === 'Escape') onCancel()
+}
+
+watch(() => props.visible, (val) => {
+  if (val) {
+    document.addEventListener('keydown', onKeydown)
+  } else {
+    document.removeEventListener('keydown', onKeydown)
+  }
+})
 </script>
 
 <template>
   <Teleport to="body">
-    <div v-if="visible" class="fixed inset-0 bg-black/60 flex items-center justify-center z-[60]" @click.self="onCancel">
+    <div v-if="visible" class="fixed inset-0 bg-black/60 flex items-center justify-center z-[60]" @click.self="onCancel" role="dialog" aria-modal="true" :aria-label="title">
       <div class="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-sm mx-4 border border-gray-200 dark:border-gray-700 shadow-xl">
         <h3 class="text-lg font-medium mb-2">{{ title }}</h3>
         <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">{{ message }}</p>

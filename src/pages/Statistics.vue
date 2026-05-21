@@ -16,6 +16,8 @@ const allRecords = ref([])
 const allEpisodes = ref([])
 const activeTab = ref('overview')
 const selectedYear = ref(new Date().getFullYear())
+const yearReviewRef = ref(null)
+const exporting = ref(false)
 
 const selectedShowStats = computed(() => {
   return showsStats.value.find(s => s.showId === selectedShowId.value)
@@ -266,6 +268,27 @@ onMounted(async () => {
   }
 })
 
+async function exportYearReview() {
+  if (!yearReviewRef.value) return
+  exporting.value = true
+  try {
+    const { default: html2canvas } = await import('html2canvas')
+    const canvas = await html2canvas(yearReviewRef.value, {
+      backgroundColor: document.documentElement.classList.contains('dark') ? '#111827' : '#f3f4f6',
+      scale: 2,
+      useCORS: true,
+    })
+    const link = document.createElement('a')
+    link.download = `观影报告-${selectedYear.value}.png`
+    link.href = canvas.toDataURL('image/png')
+    link.click()
+  } catch (e) {
+    console.warn('导出失败:', e)
+  } finally {
+    exporting.value = false
+  }
+}
+
 function goBack() {
   router.push('/')
 }
@@ -487,6 +510,20 @@ function goBack() {
       </div>
 
       <template v-else>
+        <!-- 导出按钮 -->
+        <div class="flex justify-end">
+          <button
+            @click="exportYearReview"
+            :disabled="exporting"
+            class="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition"
+            :class="exporting ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 cursor-not-allowed' : 'bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'"
+          >
+            <span v-if="exporting" class="inline-block animate-spin rounded-full h-3 w-3 border border-gray-400 border-t-transparent"></span>
+            {{ exporting ? '导出中...' : '导出为图片' }}
+          </button>
+        </div>
+
+        <div ref="yearReviewRef">
         <!-- 年份选择 -->
         <div class="flex items-center gap-2 overflow-x-auto pb-1">
           <button
@@ -556,6 +593,7 @@ function goBack() {
             <span class="text-2xl font-bold text-indigo-500 dark:text-indigo-400">{{ yearReview.topCategory.label }}</span>
             <span class="text-sm text-gray-500 dark:text-gray-400">{{ yearReview.topCategory.count }} 集</span>
           </div>
+        </div>
         </div>
       </template>
     </div>

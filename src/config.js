@@ -15,6 +15,9 @@ export const OMDB_API_KEY = import.meta.env.VITE_OMDB_API_KEY || ''
 // TasteDive API Key（免费申请: tastedive.com/read/api）
 export const TASTEDIVE_API_KEY = import.meta.env.VITE_TASTEDIVE_API_KEY || ''
 
+// RAWG API Key（免费申请: rawg.io/apidoc）
+export const RAWG_API_KEY = import.meta.env.VITE_RAWG_API_KEY || ''
+
 // GitHub 云同步配置
 // Token 建议通过设置页面配置，会存储在浏览器 localStorage 中
 export const GITHUB_TOKEN = ''

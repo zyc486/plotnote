@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { CATEGORIES, PREDEFINED_GENRES, REGION_SUGGESTIONS } from '../constants'
+import { CATEGORIES, PREDEFINED_GENRES, GAME_GENRES, REGION_SUGGESTIONS } from '../constants'
 import { useShowsStore } from '../stores/shows'
 
 const props = defineProps({
@@ -32,7 +32,8 @@ const filteredRegionSuggestions = computed(() => {
 
 const genreSearchResults = computed(() => {
   const q = genreSearchQuery.value.trim().toLowerCase()
-  const all = [...PREDEFINED_GENRES, ...genreHistory.value.map(g => g.name)]
+  const baseGenres = selectedCategory.value === 'game' ? GAME_GENRES : PREDEFINED_GENRES
+  const all = [...baseGenres, ...genreHistory.value.map(g => g.name)]
   const unique = [...new Set(all)]
   if (!q) return unique.filter(g => !selectedGenres.value.includes(g)).slice(0, 12)
   return unique.filter(g =>
@@ -41,7 +42,8 @@ const genreSearchResults = computed(() => {
 })
 
 const suggestedGenres = computed(() => {
-  return PREDEFINED_GENRES.filter(g => !selectedGenres.value.includes(g)).slice(0, 10)
+  const baseGenres = selectedCategory.value === 'game' ? GAME_GENRES : PREDEFINED_GENRES
+  return baseGenres.filter(g => !selectedGenres.value.includes(g)).slice(0, 10)
 })
 
 onMounted(async () => {

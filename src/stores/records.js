@@ -6,6 +6,7 @@ import { getUserId } from '../utils/helpers'
 
 export const useRecordsStore = defineStore('records', () => {
   const episodeRecords = ref([])
+  const loading = ref(false)
 
   function toCamelRecord(r) {
     if (!r) return r
@@ -20,6 +21,7 @@ export const useRecordsStore = defineStore('records', () => {
   }
 
   async function fetchEpisodeRecords(episodeId) {
+    loading.value = true
     const userId = await getUserId()
     const { data, error } = await supabase
       .from('records')
@@ -30,6 +32,7 @@ export const useRecordsStore = defineStore('records', () => {
     if (!error) {
       episodeRecords.value = (data || []).map(toCamelRecord)
     }
+    loading.value = false
   }
 
   async function getRecord(recordId) {
@@ -169,6 +172,7 @@ export const useRecordsStore = defineStore('records', () => {
 
   return {
     episodeRecords,
+    loading,
     fetchEpisodeRecords,
     getRecord,
     getActiveRecord,

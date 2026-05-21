@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useShowsStore } from '../stores/shows'
 import { categoryLabel } from '../utils/helpers'
@@ -9,6 +9,36 @@ const router = useRouter()
 const showsStore = useShowsStore()
 const timeline = ref([])
 const loading = ref(true)
+const viewMode = ref('month')
+const allItems = ref([])
+
+const weeklyTimeline = computed(() => {
+  const grouped = {}
+  for (const item of allItems.value) {
+    if (!item.dateStr) continue
+    const weekKey = getWeekKey(item.dateStr)
+    if (!grouped[weekKey]) grouped[weekKey] = []
+    grouped[weekKey].push(item)
+  }
+
+  return Object.entries(grouped)
+    .sort((a, b) => b[0].localeCompare(a[0]))
+    .map(([weekKey, items]) => {
+      const ratings = items.filter(i => i.rating > 0).map(i => i.rating)
+      const avgRating = ratings.length > 0
+        ? (ratings.reduce((s, r) => s + r, 0) / ratings.length).toFixed(1)
+        : 0
+      const shows = [...new Set(items.map(i => i.showName))]
+      return {
+        weekKey,
+        label: getWeekLabel(weekKey),
+        count: items.length,
+        avgRating,
+        shows,
+        items,
+      }
+    })
+})
 
 function categoryIcon(key) {
   switch (key) {
@@ -16,6 +46,7 @@ function categoryIcon(key) {
     case 'movie': return '🎬'
     case 'animation': return '🎌'
     case 'book': return '📖'
+    case 'game': return '🎮'
     default: return '📺'
   }
 }
@@ -29,6 +60,26 @@ function formatDateStr(dateStr) {
 function formatMonthKey(dateStr) {
   const d = new Date(dateStr)
   return `${d.getFullYear()}年${d.getMonth() + 1}月`
+}
+
+function getWeekKey(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00')
+  const day = d.getDay() || 7
+  d.setDate(d.getDate() + 4 - day)
+  const yearStart = new Date(d.getFullYear(), 0, 1)
+  const weekNum = Math.ceil(((d - yearStart) / 86400000 + 1) / 7)
+  return `${d.getFullYear()}-W${String(weekNum).padStart(2, '0')}`
+}
+
+function getWeekLabel(weekKey) {
+  const [year, w] = weekKey.split('-W')
+  const jan4 = new Date(Number(year), 0, 4)
+  const day = jan4.getDay() || 7
+  const weekStart = new Date(jan4)
+  weekStart.setDate(jan4.getDate() - day + 1 + (Number(w) - 1) * 7)
+  const weekEnd = new Date(weekStart)
+  weekEnd.setDate(weekStart.getDate() + 6)
+  return `${weekStart.getMonth() + 1}/${weekStart.getDate()} - ${weekEnd.getMonth() + 1}/${weekEnd.getDate()}`
 }
 
 function getEpisodeLabel(ep, category) {
@@ -74,6 +125,8 @@ async function loadTimeline() {
       if (!b.dateStr) return -1
       return b.dateStr.localeCompare(a.dateStr)
     })
+
+    allItems.value = items
 
     const grouped = {}
     for (const item of items) {
@@ -127,6 +180,10 @@ onMounted(loadTimeline)
         <button @click="goBack" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-sm transition">← 返回</button>
         <h1 class="text-2xl font-bold">观看时间线</h1>
       </div>
+      <div v-if="allItems.length > 0" class="flex items-center gap-1">
+        <button @click="viewMode = 'month'" class="px-3 py-1 text-xs rounded-full transition" :class="viewMode === 'month' ? 'bg-gray-800 text-white dark:bg-indigo-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'">按月</button>
+        <button @click="viewMode = 'week'" class="px-3 py-1 text-xs rounded-full transition" :class="viewMode === 'week' ? 'bg-gray-800 text-white dark:bg-indigo-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'">按周</button>
+      </div>
     </header>
 
     <div v-if="loading" class="text-center text-gray-400 dark:text-gray-500 py-12">加载中...</div>
@@ -136,7 +193,7 @@ onMounted(loadTimeline)
       <p class="text-sm">开始记录你的观影时光吧</p>
     </div>
 
-    <div v-else class="space-y-8">
+    <div v-else-if="viewMode === 'month'" class="space-y-8">
       <div v-for="group in timeline" :key="group.month">
         <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-3">{{ group.month }}</h2>
 
@@ -161,6 +218,39 @@ onMounted(loadTimeline)
                 <p v-if="item.review" class="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{{ stripHtml(item.review) }}</p>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-else class="space-y-6">
+      <div v-for="week in weeklyTimeline" :key="week.weekKey" class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">{{ week.label }}</h3>
+            <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{{ week.shows.join('、') }}</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-xs text-gray-500 dark:text-gray-400">{{ week.count }} 集</span>
+            <span v-if="week.avgRating > 0" class="text-sm font-bold text-amber-400">★{{ week.avgRating }}</span>
+          </div>
+        </div>
+        <div class="space-y-2 ml-3 border-l-2 border-gray-200 dark:border-gray-700 pl-4">
+          <div
+            v-for="item in week.items"
+            :key="item.id"
+            @click="goToEpisode(item.episodeId)"
+            class="bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-750 rounded-lg p-3 cursor-pointer transition border border-gray-200 dark:border-gray-700"
+          >
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="flex-shrink-0">{{ categoryIcon(item.showCategory) }}</span>
+                <span class="font-medium text-sm truncate">{{ item.showName }}</span>
+                <span v-if="item.episodeLabel" class="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">{{ item.episodeLabel }}</span>
+              </div>
+              <span v-if="item.rating > 0" class="text-sm font-bold text-amber-400 flex-shrink-0 ml-2">★{{ Number(item.rating).toFixed(1) }}</span>
+            </div>
+            <p v-if="item.review" class="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{{ stripHtml(item.review) }}</p>
           </div>
         </div>
       </div>

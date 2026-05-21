@@ -100,16 +100,6 @@ export function restoreFromBackup() {
   }
 }
 
-export async function checkAndRestore() {
-  const { db } = await import('../db')
-  const showCount = await db.shows.count()
-  if (showCount > 0) return null
-
-  const backup = restoreFromBackup()
-  if (!backup) return null
-  return backup
-}
-
 export function formatBackupTime() {
   const info = getBackupInfo()
   if (!info) return ''

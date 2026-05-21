@@ -6,7 +6,17 @@ import { getUserId } from '../utils/helpers'
 
 export const useTagsStore = defineStore('tags', () => {
   const tags = ref([])
+  const loading = ref(false)
   const MAX_CUSTOM_TAGS = 20
+
+  function toCamel(t) {
+    if (!t) return t
+    return {
+      ...t,
+      isPredefined: t.is_predefined,
+      usageCount: t.usage_count,
+    }
+  }
 
   async function initTags() {
     const userId = await getUserId()
@@ -28,19 +38,21 @@ export const useTagsStore = defineStore('tags', () => {
   }
 
   async function fetchTags() {
+    loading.value = true
     const userId = await getUserId()
     const { data, error } = await supabase
       .from('tags')
       .select('*')
       .eq('user_id', userId)
       .order('usage_count', { ascending: false })
-    if (!error) tags.value = data || []
+    if (!error) tags.value = (data || []).map(toCamel)
+    loading.value = false
   }
 
   async function addCustomTag(name) {
     const trimmed = name.trim()
     if (!trimmed) return null
-    if (tags.value.filter(t => !t.is_predefined).length >= MAX_CUSTOM_TAGS) {
+    if (tags.value.filter(t => !t.isPredefined).length >= MAX_CUSTOM_TAGS) {
       return null
     }
 
@@ -88,6 +100,7 @@ export const useTagsStore = defineStore('tags', () => {
 
   return {
     tags,
+    loading,
     fetchTags,
     initTags,
     addCustomTag,

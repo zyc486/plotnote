@@ -8,6 +8,7 @@ import { searchAnime } from '../utils/anilist'
 import { searchAnime as searchAnimeJikan } from '../utils/jikan'
 
 import { searchBooks } from '../utils/googleBooks'
+import { searchGames, getGameDetails } from '../utils/cheapshark'
 import { getTerminology, progressLabel } from '../utils/terminology'
 import { CATEGORIES, SHOW_STATUSES } from '../constants'
 import { parseGenres, categoryLabel, statusLabel, statusColor } from '../utils/helpers'
@@ -17,6 +18,9 @@ import ConfirmDialog from '../components/ConfirmDialog.vue'
 import CoverImage from '../components/CoverImage.vue'
 import ShowCard from '../components/ShowCard.vue'
 import SeriesCard from '../components/SeriesCard.vue'
+import RandomReview from '../components/RandomReview.vue'
+import MilestoneDialog from '../components/MilestoneDialog.vue'
+import { MILESTONES } from '../constants'
 
 const props = defineProps(['toast'])
 const router = useRouter()
@@ -63,11 +67,39 @@ const seriesInput = ref('')
 
 const fetchingCovers = ref(false)
 const confirmDialog = ref({ visible: false, title: '', message: '', onConfirm: null })
+const randomReviewRef = ref(null)
+const milestoneRef = ref(null)
+
+function checkMilestones() {
+  const seenKey = 'plotnote_milestones_seen'
+  const seen = JSON.parse(localStorage.getItem(seenKey) || '{}')
+
+  const totalShows = store.shows.length
+  const totalEpisodes = store.shows.reduce((sum, s) => sum + (s.totalEpisodes || 0), 0)
+  const totalRatings = store.shows.reduce((sum, s) => sum + (s.ratedCount || 0), 0)
+
+  const counts = { episodes: totalEpisodes, shows: totalShows, ratings: totalRatings }
+  let pendingMilestone = null
+
+  for (const ms of MILESTONES) {
+    const key = `${ms.type}_${ms.threshold}`
+    if (counts[ms.type] >= ms.threshold && !seen[key]) {
+      seen[key] = Date.now()
+      if (!pendingMilestone) pendingMilestone = ms
+    }
+  }
+
+  localStorage.setItem(seenKey, JSON.stringify(seen))
+  if (pendingMilestone) {
+    setTimeout(() => milestoneRef.value?.show(pendingMilestone), 500)
+  }
+}
 
 onMounted(async () => {
   await store.fetchShows()
   seriesList.value = await store.getAllSeries()
   document.addEventListener('click', closeStatusDropdown)
+  checkMilestones()
 })
 
 onUnmounted(() => {
@@ -108,6 +140,8 @@ const debouncedSearch = debounce(async (query) => {
       searchResults.value = results
     } else if (cat === 'book') {
       searchResults.value = await searchBooks(q)
+    } else if (cat === 'game') {
+      searchResults.value = await searchGames(q)
     } else {
       // 同时搜索 TVMaze 和 TMDB，合并结果
       const [tvmazeResults, tmdbResults] = await Promise.allSettled([
@@ -180,6 +214,20 @@ async function selectResult(item) {
     resultEpisodes.value = [{ season: 1, episode: 1 }]
     addName.value = item.name
     addAuthor.value = item.authors?.length ? item.authors.join(', ') : ''
+  } else if (cat === 'game') {
+    showGenres.value = item.genres || []
+    resultEpisodes.value = [{ season: 1, episode: 1 }]
+    addName.value = item.name
+    // 获取详细信息（开发商/发行商）
+    try {
+      const details = await getGameDetails(item.id)
+      if (details) {
+        addAuthor.value = details.developers?.length ? details.developers.join(', ') : ''
+        if (details.genres?.length && showGenres.value.length === 0) {
+          showGenres.value = details.genres
+        }
+      }
+    } catch {}
   } else {
     showRegion.value = item.region || item.language || ''
     showGenres.value = item.genres || []
@@ -275,13 +323,16 @@ async function confirmManualAdd() {
     } else if (cat === 'book') {
       const results = await searchBooks(name)
       if (results.length > 0) coverImage = results[0].image || ''
+    } else if (cat === 'game') {
+      const results = await searchGames(name)
+      if (results.length > 0) coverImage = results[0].image || ''
     }
     await store.addShow(name, eps, {
       category: cat,
       region: showRegion.value,
       genres: showGenres.value,
       coverImage,
-      author: cat === 'book' ? addAuthor.value.trim() : '',
+      author: (cat === 'book' || cat === 'game') ? addAuthor.value.trim() : '',
     })
     closeForm()
     props.toast?.('添加成功', 'success')
@@ -311,6 +362,7 @@ function closeForm() { showForm.value = false }
 function goToShow(id) { router.push(`/show/${id}`) }
 function goToStats() { router.push('/statistics') }
 function goToSearch() { router.push('/search') }
+function openRandomReview() { randomReviewRef.value?.pickRandom() }
 
 async function handleDelete(id, e) {
   e.stopPropagation()
@@ -421,21 +473,57 @@ async function quickChangeStatus(showId, status, e) {
 
 async function fetchOneCover(show) {
   const cat = show.category || 'tv'
+  const name = show.name
   let image = ''
-  try {
-    if (cat === 'tv') {
-      image = await findTvPoster(show.name) || ''
-    } else if (cat === 'movie') {
-      image = await findMoviePosterFallback(show.name) || ''
-    } else if (cat === 'animation') {
-      let results = await searchAnime(show.name)
-      if (results.length === 0) results = await searchAnimeJikan(show.name)
-      if (results.length > 0) image = results[0].image || ''
-    } else if (cat === 'book') {
-      const results = await searchBooks(show.name)
-      if (results.length > 0) image = results[0].image || ''
+
+  if (cat === 'tv') {
+    try { image = await findTvPoster(name) || '' } catch (e) { console.warn(`[封面] TMDB 电视剧搜索失败: "${name}"`, e.message) }
+    if (!image) {
+      try {
+        const results = await searchTvShows(name)
+        if (results.length > 0) image = results[0].image || ''
+      } catch (e) { console.warn(`[封面] TMDB TV 搜索失败: "${name}"`, e.message) }
     }
-  } catch {}
+    if (!image) {
+      try {
+        const results = await searchTvmaze(name)
+        if (results.length > 0) image = results[0].image || ''
+      } catch (e) { console.warn(`[封面] TVmaze 搜索失败: "${name}"`, e.message) }
+    }
+  } else if (cat === 'movie') {
+    try { image = await findMoviePosterFallback(name) || '' } catch (e) { console.warn(`[封面] TMDB 电影海报搜索失败: "${name}"`, e.message) }
+    if (!image) {
+      try {
+        const results = await searchMovies(name)
+        if (results.length > 0) image = results[0].image || ''
+      } catch (e) { console.warn(`[封面] TMDB 电影搜索失败: "${name}"`, e.message) }
+    }
+  } else if (cat === 'animation') {
+    try {
+      const results = await searchAnime(name)
+      if (results.length > 0) image = results[0].image || ''
+    } catch (e) { console.warn(`[封面] AniList 搜索失败: "${name}"`, e.message) }
+    if (!image) {
+      try {
+        const results = await searchAnimeJikan(name)
+        if (results.length > 0) image = results[0].image || ''
+      } catch (e) { console.warn(`[封面] Jikan 搜索失败: "${name}"`, e.message) }
+    }
+    if (!image) {
+      try { image = await findTvPoster(name) || '' } catch {}
+    }
+  } else if (cat === 'book') {
+    try {
+      const results = await searchBooks(name)
+      if (results.length > 0) image = results[0].image || ''
+    } catch (e) { console.warn(`[封面] 图书搜索失败: "${name}"`, e.message) }
+  } else if (cat === 'game') {
+    try {
+      const results = await searchGames(name)
+      if (results.length > 0) image = results[0].image || ''
+    } catch (e) { console.warn(`[封面] 游戏搜索失败: "${name}"`, e.message) }
+  }
+
   return { showId: show.id, image }
 }
 
@@ -550,9 +638,11 @@ const manualItemLabel = computed(() => {
     <header class="flex items-center justify-between mb-6 md:mb-8">
       <h1 class="text-xl md:text-2xl font-bold">PlotNote</h1>
       <div class="flex items-center gap-1 md:gap-2">
+        <button @click="openRandomReview" class="text-amber-500 hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300 text-xs md:text-sm px-2 md:px-3 py-2 transition" title="随机回忆">🎲</button>
         <button @click="goToSearch" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xs md:text-sm px-2 md:px-3 py-2 transition">搜索</button>
         <button @click="goToStats" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xs md:text-sm px-2 md:px-3 py-2 transition">统计</button>
         <router-link to="/timeline" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xs md:text-sm px-2 md:px-3 py-2 transition">时间线</router-link>
+        <router-link to="/tags" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xs md:text-sm px-2 md:px-3 py-2 transition">标签</router-link>
         <router-link to="/settings" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xs md:text-sm px-2 md:px-3 py-2 transition">设置</router-link>
         <button @click="openForm" class="bg-gray-800 hover:bg-gray-700 text-white dark:bg-indigo-600 dark:hover:bg-indigo-500 px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition">+ 添加</button>
       </div>
@@ -654,7 +744,7 @@ const manualItemLabel = computed(() => {
           </div>
 
           <div class="mb-4">
-            <input v-model="searchQuery" type="text" :placeholder="selectedCategory === 'book' ? '搜索书名...' : selectedCategory === 'movie' ? '搜索电影名...' : selectedCategory === 'animation' ? '搜索动画名...' : '搜索剧名...'" class="w-full bg-gray-100 dark:bg-gray-700 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500" @input="onSearchInput" autofocus />
+            <input v-model="searchQuery" type="text" :placeholder="selectedCategory === 'book' ? '搜索书名...' : selectedCategory === 'movie' ? '搜索电影名...' : selectedCategory === 'animation' ? '搜索动画名...' : selectedCategory === 'game' ? '搜索游戏名...' : '搜索剧名...'" class="w-full bg-gray-100 dark:bg-gray-700 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500" @input="onSearchInput" autofocus />
           </div>
 
           <div v-if="searching" class="text-center text-gray-400 dark:text-gray-500 py-6">
@@ -671,7 +761,8 @@ const manualItemLabel = computed(() => {
                 <p class="text-xs text-gray-500 dark:text-gray-400 truncate">
                   <span v-if="item.language">{{ item.language }}</span>
                   <span v-if="item.authors?.length"> · {{ item.authors.join(', ') }}</span>
-                  <span v-if="item.genres?.length"> · {{ item.genres.join(', ') }}</span>
+                  <span v-if="item.platforms?.length"> · {{ item.platforms.slice(0, 3).join(', ') }}</span>
+                  <span v-if="item.genres?.length"> · {{ item.genres.slice(0, 3).join(', ') }}</span>
                   <span v-if="item.status"> · {{ item.status }}</span>
                 </p>
               </div>
@@ -739,6 +830,11 @@ const manualItemLabel = computed(() => {
             <input v-model="addAuthor" type="text" placeholder="输入作者名" class="w-full bg-gray-100 dark:bg-gray-700 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500" />
           </div>
 
+          <div v-if="selectedCategory === 'game'">
+            <label class="block text-sm text-gray-500 dark:text-gray-400 mb-1">开发商</label>
+            <input v-model="addAuthor" type="text" placeholder="输入开发商名称" class="w-full bg-gray-100 dark:bg-gray-700 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+
           <div v-if="selectedCategory === 'tv'" class="flex gap-3">
             <div class="flex-1">
               <label class="block text-sm text-gray-500 dark:text-gray-400 mb-1">{{ manualVolLabel }}数</label>
@@ -797,6 +893,11 @@ const manualItemLabel = computed(() => {
           <input v-model="editAuthor" type="text" placeholder="输入作者名" class="w-full bg-gray-100 dark:bg-gray-700 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500" />
         </div>
 
+        <div v-if="editCategory === 'game'" class="mb-4">
+          <label class="block text-sm text-gray-500 dark:text-gray-400 mb-1">开发商</label>
+          <input v-model="editAuthor" type="text" placeholder="输入开发商名称" class="w-full bg-gray-100 dark:bg-gray-700 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+
         <GenreSelector v-model:category="editCategory" v-model:region="editRegion" v-model:genres="editGenres" />
 
         <div class="mt-5">
@@ -839,6 +940,9 @@ const manualItemLabel = computed(() => {
         </div>
       </div>
     </div>
+
+    <RandomReview ref="randomReviewRef" />
+    <MilestoneDialog ref="milestoneRef" />
 
     <ConfirmDialog
       :visible="confirmDialog.visible"

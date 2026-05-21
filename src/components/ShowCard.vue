@@ -1,4 +1,5 @@
 <script setup>
+import { computed } from 'vue'
 import { progressLabel } from '../utils/terminology'
 import StatusDropdown from './StatusDropdown.vue'
 
@@ -10,8 +11,6 @@ const props = defineProps({
 const emit = defineEmits(['goTo', 'edit', 'delete', 'toggleStatus', 'changeStatus'])
 
 const progress = computed(() => progressLabel(props.show))
-
-import { computed } from 'vue'
 </script>
 
 <template>

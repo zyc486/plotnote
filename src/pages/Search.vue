@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '../utils/supabase'
 import { CATEGORIES } from '../constants'
@@ -18,6 +18,25 @@ const selectedCategory = ref('')
 const allTags = ref([])
 const results = ref([])
 const searching = ref(false)
+const searchInput = ref(null)
+
+const showCount = computed(() => results.value.filter(r => r.type === 'show').length)
+const episodeCount = computed(() => results.value.filter(r => r.type === 'episode').length)
+
+function onGlobalKeydown(e) {
+  if (e.key === '/' && !e.ctrlKey && !e.metaKey && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+    e.preventDefault()
+    searchInput.value?.focus()
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('keydown', onGlobalKeydown)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', onGlobalKeydown)
+})
 
 function episodeLabel(ep, category) {
   return epLabel(ep, category || 'tv')
@@ -200,12 +219,14 @@ function goBack() {
     <div class="space-y-4 mb-8">
       <div class="relative">
         <input
+          ref="searchInput"
           v-model="query"
           type="text"
           placeholder="搜索名称、评论、标签、地区、类型..."
-          class="w-full bg-gray-100 dark:bg-gray-800 rounded-lg px-4 py-3 pr-10 outline-none focus:ring-2 focus:ring-indigo-500 border border-gray-200 dark:border-gray-700"
+          class="w-full bg-gray-100 dark:bg-gray-800 rounded-lg px-4 py-3 pr-20 outline-none focus:ring-2 focus:ring-indigo-500 border border-gray-200 dark:border-gray-700"
           @input="debouncedSearch"
         />
+        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 dark:text-gray-500 bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 rounded" :class="{ 'hidden': searching }">/</span>
         <div v-if="searching" class="absolute right-3 top-1/2 -translate-y-1/2">
           <div class="w-4 h-4 rounded-full border-2 border-indigo-400 border-t-transparent animate-spin"></div>
         </div>
@@ -256,11 +277,17 @@ function goBack() {
     </div>
 
     <div v-else-if="results.length === 0" class="text-center text-gray-400 dark:text-gray-500 py-8">
-      输入关键词开始搜索
+      <p>输入关键词开始搜索</p>
+      <p class="text-xs mt-1">按 <kbd class="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-[10px]">/</kbd> 聚焦搜索框</p>
     </div>
 
     <div v-else class="space-y-3">
-      <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">找到 {{ results.length }} 条结果</p>
+      <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">
+        找到 {{ results.length }} 条结果
+        <span v-if="showCount > 0 && episodeCount > 0" class="text-xs text-gray-400 dark:text-gray-500">
+          （{{ showCount }} 部作品，{{ episodeCount }} 条记录）
+        </span>
+      </p>
 
       <div
         v-for="item in results"

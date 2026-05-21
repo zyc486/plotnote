@@ -17,10 +17,21 @@ function show(message, type = 'success', durationOrCallback = 2500, undoCallback
     duration = 5000
   }
 
+  // 错误和警告类型不自动消失，需用户手动关闭
+  if (type === 'error' || type === 'warning') {
+    duration = 0
+  }
+
   toasts.value.push({ id, message, type, onUndo })
-  setTimeout(() => {
-    toasts.value = toasts.value.filter(t => t.id !== id)
-  }, duration)
+  if (duration > 0) {
+    setTimeout(() => {
+      toasts.value = toasts.value.filter(t => t.id !== id)
+    }, duration)
+  }
+}
+
+function dismiss(id) {
+  toasts.value = toasts.value.filter(t => t.id !== id)
 }
 
 function handleUndo(toast) {
@@ -28,11 +39,11 @@ function handleUndo(toast) {
   toasts.value = toasts.value.filter(t => t.id !== toast.id)
 }
 
-defineExpose({ show })
+defineExpose({ show, dismiss })
 </script>
 
 <template>
-  <div class="fixed top-4 right-4 z-50 space-y-2">
+  <div class="fixed top-4 right-4 z-50 space-y-2" role="alert" aria-live="polite">
     <div
       v-for="toast in toasts"
       :key="toast.id"
@@ -50,6 +61,11 @@ defineExpose({ show })
         @click="handleUndo(toast)"
         class="text-white/90 hover:text-white font-semibold text-xs underline underline-offset-2 whitespace-nowrap"
       >撤销</button>
+      <button
+        v-if="toast.type === 'error' || toast.type === 'warning'"
+        @click="dismiss(toast.id)"
+        class="text-white/70 hover:text-white ml-1 text-xs leading-none"
+      >✕</button>
     </div>
   </div>
 </template>

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useShowsStore } from '../stores/shows'
 import { useEpisodesStore } from '../stores/episodes'
@@ -90,6 +90,14 @@ const filteredAvgRating = computed(() => {
   return (sum / count).toFixed(1)
 })
 
+watch(showCoverLightbox, (val) => {
+  if (val) {
+    document.addEventListener('keydown', onLightboxKeydown)
+  } else {
+    document.removeEventListener('keydown', onLightboxKeydown)
+  }
+})
+
 onMounted(async () => {
   const showId = Number(route.params.id)
   show.value = await showsStore.getShow(showId)
@@ -112,6 +120,10 @@ onMounted(async () => {
   if (episodes.value.length === 1) {
     router.replace(`/episode/${episodes.value[0].id}`)
   }
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', onLightboxKeydown)
 })
 
 function getRecord(episodeId) {
@@ -137,6 +149,10 @@ async function loadCredits() {
   }
 }
 
+
+function onLightboxKeydown(e) {
+  if (e.key === 'Escape') showCoverLightbox.value = false
+}
 
 function goToStats() {
   router.push('/statistics')
@@ -357,7 +373,11 @@ function handleJump() {
           v-for="ep in episodeGroups[season]"
           :key="ep.id"
           @click="goToEpisode(ep.id)"
-          class="flex flex-col items-center justify-center aspect-square rounded-xl cursor-pointer transition border"
+          @keydown.enter="goToEpisode(ep.id)"
+          tabindex="0"
+          role="button"
+          :aria-label="`第 ${ep.episode} 集${getRecord(ep.id)?.rating > 0 ? '，评分 ' + Number(getRecord(ep.id).rating).toFixed(1) : ''}`"
+          class="flex flex-col items-center justify-center aspect-square rounded-xl cursor-pointer transition border outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 dark:focus-visible:ring-indigo-500"
           :class="getRecord(ep.id)?.rating > 0
             ? 'bg-indigo-50 border-indigo-200 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:border-indigo-700 dark:hover:bg-indigo-900/50'
             : 'bg-gray-100 border-gray-200 hover:bg-gray-200 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700'"

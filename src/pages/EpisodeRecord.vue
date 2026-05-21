@@ -511,6 +511,11 @@ onBeforeUnmount(() => {
 
 onUnmounted(() => {
   window.removeEventListener('beforeunload', handleBeforeUnload)
+  debouncedSaveRating.cancel()
+  debouncedSaveImages.cancel()
+  debouncedSaveTags.cancel()
+  debouncedSaveWatchedDate.cancel()
+  debouncedUndoToast.cancel()
   saveToDraft()
 })
 

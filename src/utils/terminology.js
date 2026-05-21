@@ -35,6 +35,15 @@ const TERMS = {
     seasonPlaceholder: '卷数',
     episodePlaceholder: '每卷章数',
   },
+  game: {
+    episodeLabel: '章',
+    seasonLabel: '作',
+    episodeCode: (s, e) => `第${s}作·第${e}章`,
+    plural: '章',
+    addLabel: '每作章数',
+    seasonPlaceholder: '作品序号',
+    episodePlaceholder: '每作章数',
+  },
 }
 
 export function getTerminology(category) {

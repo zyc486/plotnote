@@ -28,6 +28,16 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/douban-book/, ''),
       },
+      '/api/steam-search': {
+        target: 'https://store.steampowered.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/steam-search/, '/api/storesearch'),
+      },
+      '/api/steam-detail': {
+        target: 'https://store.steampowered.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/steam-detail/, '/api/appdetails'),
+      },
     },
   },
 })

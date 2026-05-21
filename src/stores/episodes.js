@@ -7,6 +7,7 @@ import { getUserId } from '../utils/helpers'
 
 export const useEpisodesStore = defineStore('episodes', () => {
   const episodes = ref([])
+  const loading = ref(false)
 
   function toCamel(ep) {
     if (!ep) return ep
@@ -18,6 +19,7 @@ export const useEpisodesStore = defineStore('episodes', () => {
   }
 
   async function fetchEpisodes(showId) {
+    loading.value = true
     const userId = await getUserId()
     const { data, error } = await supabase
       .from('episodes')
@@ -27,6 +29,7 @@ export const useEpisodesStore = defineStore('episodes', () => {
       .order('season')
       .order('episode')
     if (!error) episodes.value = (data || []).map(toCamel)
+    loading.value = false
   }
 
   async function getEpisode(episodeId) {
@@ -112,5 +115,5 @@ export const useEpisodesStore = defineStore('episodes', () => {
     await fetchEpisodes(episode.show_id)
   }
 
-  return { episodes, fetchEpisodes, getEpisode, getAdjacentEpisodes, episodeLabel, deleteEpisode, fetchEpisodesWithRecords, fetchAllEpisodeScores }
+  return { episodes, loading, fetchEpisodes, getEpisode, getAdjacentEpisodes, episodeLabel, deleteEpisode, fetchEpisodesWithRecords, fetchAllEpisodeScores }
 })
