@@ -45,7 +45,7 @@ const progress = computed(() => progressLabel(props.show))
         @toggle="emit('toggleStatus', $event)"
         @change="emit('changeStatus', $event)"
       />
-      <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+      <div @click.stop class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
         <div class="flex justify-end gap-1.5">
           <button @click.stop="emit('edit', show, $event)" class="w-7 h-7 rounded-full bg-white/20 hover:bg-white/40 text-white text-xs flex items-center justify-center transition">编辑</button>
           <button @click.stop="emit('delete', show.id, $event)" class="w-7 h-7 rounded-full bg-red-500/60 hover:bg-red-500/80 text-white text-xs flex items-center justify-center transition">删</button>

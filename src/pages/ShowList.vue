@@ -707,14 +707,14 @@ const manualItemLabel = computed(() => {
   <div class="max-w-2xl mx-auto p-4 md:p-6">
     <header class="flex items-center justify-between mb-6 md:mb-8">
       <h1 class="text-xl md:text-2xl font-bold">PlotNote</h1>
-      <div class="flex items-center gap-1 md:gap-2">
-        <button @click="openRandomReview" class="text-amber-500 hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300 text-xs md:text-sm px-2 md:px-3 py-2 transition" title="随机回忆">🎲</button>
-        <button @click="goToSearch" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xs md:text-sm px-2 md:px-3 py-2 transition">搜索</button>
-        <button @click="goToStats" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xs md:text-sm px-2 md:px-3 py-2 transition">统计</button>
-        <router-link to="/timeline" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xs md:text-sm px-2 md:px-3 py-2 transition">时间线</router-link>
-        <router-link to="/tags" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xs md:text-sm px-2 md:px-3 py-2 transition">标签</router-link>
-        <router-link to="/settings" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xs md:text-sm px-2 md:px-3 py-2 transition">设置</router-link>
-        <button @click="openForm" class="bg-gray-800 hover:bg-gray-700 text-white dark:bg-indigo-600 dark:hover:bg-indigo-500 px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition">+ 添加</button>
+      <div class="flex items-center gap-1 md:gap-2 overflow-x-auto flex-nowrap">
+        <button @click="openRandomReview" class="text-amber-500 hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300 text-xs md:text-sm px-1.5 md:px-3 py-2 transition whitespace-nowrap shrink-0" title="随机回忆">🎲</button>
+        <button @click="goToSearch" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xs md:text-sm px-1.5 md:px-3 py-2 transition whitespace-nowrap shrink-0">搜索</button>
+        <button @click="goToStats" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xs md:text-sm px-1.5 md:px-3 py-2 transition whitespace-nowrap shrink-0">统计</button>
+        <router-link to="/timeline" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xs md:text-sm px-1.5 md:px-3 py-2 transition whitespace-nowrap shrink-0">时间线</router-link>
+        <router-link to="/tags" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xs md:text-sm px-1.5 md:px-3 py-2 transition whitespace-nowrap shrink-0">标签</router-link>
+        <router-link to="/settings" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xs md:text-sm px-1.5 md:px-3 py-2 transition whitespace-nowrap shrink-0">设置</router-link>
+        <button @click="openForm" class="bg-gray-800 hover:bg-gray-700 text-white dark:bg-indigo-600 dark:hover:bg-indigo-500 px-2 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition whitespace-nowrap shrink-0">+ 添加</button>
       </div>
     </header>
 
