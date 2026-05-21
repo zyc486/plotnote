@@ -86,7 +86,7 @@ const editor = useEditor({
   ],
   editorProps: {
     attributes: {
-      class: 'flex-1 min-h-[360px] w-full bg-white dark:bg-zinc-900 rounded-2xl px-5 py-4 border border-zinc-200/60 dark:border-zinc-800 text-sm md:text-base leading-relaxed text-zinc-800 dark:text-zinc-200 outline-none focus:ring-2 focus:ring-amber-300 dark:focus:ring-amber-800 transition-shadow overflow-y-auto prose prose-zinc dark:prose-invert prose-sm max-w-none',
+      class: 'flex-1 min-h-[200px] md:min-h-[360px] w-full bg-white dark:bg-zinc-900 rounded-2xl px-5 py-4 border border-zinc-200/60 dark:border-zinc-800 text-sm md:text-base leading-relaxed text-zinc-800 dark:text-zinc-200 outline-none focus:ring-2 focus:ring-amber-300 dark:focus:ring-amber-800 transition-shadow overflow-y-auto prose prose-zinc dark:prose-invert prose-sm max-w-none',
     },
   },
   onUpdate: () => {
@@ -582,7 +582,7 @@ onBeforeRouteLeave(async (to, from, next) => {
       </aside>
 
       <!-- 主编辑区 -->
-      <main class="flex-1 flex flex-col min-w-0">
+      <main class="flex-1 flex flex-col min-w-0 overflow-y-auto">
         <div class="flex-1 flex flex-col p-4 md:p-8">
           <div class="review-share-card bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-200/60 dark:border-zinc-800 mb-4">
             <div class="flex items-center gap-2 mb-3">
