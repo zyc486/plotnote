@@ -16,7 +16,6 @@ const emit = defineEmits(['toggle', 'change'])
       'bg-blue-500': status === 'want',
       'bg-green-500': status === 'watching',
       'bg-gray-400': status === 'finished',
-      'bg-red-500': status === 'dropped',
     }"></span>
     <div
       v-if="isOpen"

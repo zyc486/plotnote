@@ -16,7 +16,6 @@ export const SHOW_STATUSES = [
   { key: 'want', label: '想看', color: 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400' },
   { key: 'watching', label: '在看', color: 'bg-green-100 text-green-600 dark:bg-green-900/40 dark:text-green-400' },
   { key: 'finished', label: '已看完', color: 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400' },
-  { key: 'dropped', label: '弃了', color: 'bg-red-100 text-red-500 dark:bg-red-900/40 dark:text-red-400' },
 ]
 
 export const PREDEFINED_GENRES = [
