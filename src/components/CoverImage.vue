@@ -3,6 +3,7 @@ import { ref, watch, computed } from 'vue'
 
 const props = defineProps({
   src: { type: String, default: '' },
+  fallbackSrc: { type: String, default: '' },
   name: { type: String, default: '' },
   size: { type: String, default: 'md' },
   category: { type: String, default: '' },
@@ -28,9 +29,20 @@ const placeholderClass = computed(() => ({
 }[props.size] || 'bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800'))
 
 const isGame = computed(() => props.category === 'game')
+const currentSrc = ref(props.src)
+const usedFallback = ref(false)
+const effectiveFallback = computed(() => {
+  if (props.fallbackSrc) return props.fallbackSrc
+  if (isGame.value && props.src?.includes('library_600x900')) {
+    return props.src.replace('library_600x900', 'header')
+  }
+  return ''
+})
 
 watch(() => props.src, () => {
+  currentSrc.value = props.src
   errored.value = false
+  usedFallback.value = false
   loading.value = true
 })
 
@@ -39,6 +51,11 @@ function onLoad() {
 }
 
 function onError() {
+  if (effectiveFallback.value && !usedFallback.value) {
+    usedFallback.value = true
+    currentSrc.value = effectiveFallback.value
+    return
+  }
   errored.value = true
   loading.value = false
   emit('imageError')
@@ -55,14 +72,14 @@ function onClick() {
     @click="onClick"
   >
     <!-- Loading shimmer -->
-    <div v-if="loading && src && !errored" class="absolute inset-0 animate-pulse bg-gray-200 dark:bg-gray-700 rounded-[inherit]" />
+    <div v-if="loading && currentSrc && !errored" class="absolute inset-0 animate-pulse bg-gray-200 dark:bg-gray-700 rounded-[inherit]" />
 
     <!-- Image -->
     <img
-      v-if="src && !errored"
-      :src="src"
+      v-if="currentSrc && !errored"
+      :src="currentSrc"
       class="w-full h-full transition-opacity duration-300"
-      :class="[isGame ? 'object-contain' : 'object-cover', loading ? 'opacity-0' : 'opacity-100']"
+      :class="[(isGame && usedFallback) ? 'object-contain' : 'object-cover', loading ? 'opacity-0' : 'opacity-100']"
       @load="onLoad"
       @error="onError"
       loading="lazy"

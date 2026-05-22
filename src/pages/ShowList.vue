@@ -846,7 +846,7 @@ const manualItemLabel = computed(() => {
 
           <div v-else-if="searchResults.length > 0 && !selectedResult" class="space-y-2 max-h-60 overflow-y-auto">
             <div v-for="item in searchResults" :key="item.id" @click="selectResult(item)" class="flex items-center gap-3 p-3 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-650 cursor-pointer transition">
-              <CoverImage :src="item.image" :name="item.name" size="sm" :category="selectedCategory" />
+              <CoverImage :src="item.image" :fallback-src="item.fallbackImage" :name="item.name" size="sm" :category="selectedCategory" />
               <div class="flex-1 min-w-0">
                 <p class="font-medium truncate">{{ item.name }}</p>
                 <p v-if="item.cnName || item.nativeName || item.englishName" class="text-xs text-gray-400 dark:text-gray-500 truncate">{{ item.cnName || item.nativeName || item.englishName }}</p>

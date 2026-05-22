@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { progressLabel } from '../utils/terminology'
 import StatusDropdown from './StatusDropdown.vue'
 
@@ -14,6 +14,22 @@ const emit = defineEmits(['goTo', 'edit', 'delete', 'toggleStatus', 'changeStatu
 
 const progress = computed(() => progressLabel(props.show))
 const isGame = computed(() => props.show?.category === 'game')
+const imgSrc = ref(props.show?.coverImage)
+const triedFallback = ref(false)
+
+watch(() => props.show?.coverImage, (val) => {
+  imgSrc.value = val
+  triedFallback.value = false
+})
+
+function onImgError() {
+  if (isGame.value && !triedFallback.value && imgSrc.value?.includes('library_600x900')) {
+    triedFallback.value = true
+    imgSrc.value = imgSrc.value.replace('library_600x900', 'header')
+    return
+  }
+  imgSrc.value = ''
+}
 </script>
 
 <template>
@@ -25,13 +41,13 @@ const isGame = computed(() => props.show?.category === 'game')
         </div>
       </div>
       <img
-        v-if="show.coverImage"
-        :src="show.coverImage"
+        v-if="imgSrc"
+        :src="imgSrc"
         :alt="show.name"
         class="w-full h-full transition-transform duration-300 group-hover:scale-105"
-        :class="isGame ? 'object-contain' : 'object-cover'"
+        :class="(isGame && triedFallback) ? 'object-contain' : 'object-cover'"
         loading="lazy"
-        @error="$event.target.style.display = 'none'"
+        @error="onImgError"
       />
       <div v-else class="w-full h-full bg-gradient-to-br from-gray-300 to-gray-400 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center p-2">
         <span class="text-gray-500 dark:text-gray-400 font-medium text-center text-xs leading-tight line-clamp-3">{{ show.name }}</span>
