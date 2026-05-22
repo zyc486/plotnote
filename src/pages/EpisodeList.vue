@@ -222,57 +222,53 @@ function handleJump() {
       ← 返回
     </button>
 
-    <div v-if="show" class="mb-6">
-      <div class="flex flex-row sm:flex-row gap-3 sm:gap-4 items-start sm:items-center">
-        <div class="relative flex-shrink-0 cursor-pointer hover:opacity-80 transition" @click="showCoverLightbox = true">
+    <div v-if="show" class="mb-4">
+      <div class="flex flex-row gap-4 items-stretch">
+        <div class="relative flex-shrink-0 cursor-pointer hover:opacity-80 transition self-center" @click="showCoverLightbox = true">
           <CoverImage :src="show.coverImage" :name="show.name" size="lg" />
-          <div v-if="filteredAvgRating > 0" class="absolute top-1.5 left-1.5 bg-black/75 backdrop-blur-sm text-amber-400 text-xs font-bold px-1.5 py-0.5 rounded">
-            {{ filteredAvgRating }}
-          </div>
         </div>
-        <div class="flex-1 min-w-0">
-          <h1 class="text-lg sm:text-xl md:text-2xl font-bold leading-tight">{{ show.name }}</h1>
-          <div class="flex items-center gap-1.5 md:gap-2 mt-1 flex-wrap">
-            <span v-if="show.category" class="px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs rounded-full bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400">{{ categoryLabel(show.category) }}</span>
-            <span v-if="show.status" class="px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs rounded-full" :class="statusColor(show.status)">{{ statusLabel(show.status) }}</span>
+        <div class="flex-1 min-w-0 flex flex-col items-center justify-center text-center">
+          <h1 class="text-lg md:text-xl font-bold leading-tight">{{ show.name }}</h1>
+          <span v-if="filteredAvgRating > 0" class="text-3xl md:text-4xl font-bold text-amber-400 mt-1">{{ filteredAvgRating }}</span>
+          <div class="flex items-center gap-1.5 mt-1.5 flex-wrap justify-center">
+            <span v-if="show.status" class="px-1.5 py-0.5 text-[10px] md:text-xs rounded-full" :class="statusColor(show.status)">{{ statusLabel(show.status) }}</span>
             <span v-if="show.region" class="text-[10px] md:text-xs text-gray-500 dark:text-gray-400">{{ show.region }}</span>
             <template v-if="parseGenres(show).length > 0">
-              <span v-for="g in parseGenres(show).slice(0, 3)" :key="g" class="px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs rounded-full bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400">{{ g }}</span>
+              <span v-for="g in parseGenres(show).slice(0, 3)" :key="g" class="px-1.5 py-0.5 text-[10px] md:text-xs rounded-full bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400">{{ g }}</span>
             </template>
-            <button @click="goToStats" class="text-[10px] md:text-xs text-indigo-500 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 transition ml-auto">查看统计 →</button>
           </div>
-          <div class="flex items-center gap-2 md:gap-4 mt-2 flex-wrap">
-            <span class="text-gray-500 dark:text-gray-400 text-xs md:text-sm">
-              进度: {{ filteredProgressText }}
-              <span v-if="activeSeason !== null && needsSeasonPrefix" class="text-gray-400 dark:text-gray-500">(第{{ activeSeason }}季)</span>
-            </span>
-            <div class="flex items-center gap-1.5 flex-1 min-w-0 max-w-xs">
-              <div class="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                <div
-                  class="h-full bg-indigo-500 rounded-full transition-all duration-500"
-                  :style="{ width: filteredProgressPercent + '%' }"
-                ></div>
-              </div>
-              <span class="text-[10px] md:text-xs text-gray-400 dark:text-gray-500">{{ filteredProgressPercent }}%</span>
-            </div>
-            <span v-if="filteredAvgRating > 0" class="ml-auto sm:ml-0 text-amber-400 font-bold text-sm md:text-base">
-              {{ filteredAvgRating }} 均分
-            </span>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 mt-3">
+        <span class="text-gray-500 dark:text-gray-400 text-xs whitespace-nowrap">
+          进度: {{ filteredProgressText }}
+          <span v-if="activeSeason !== null && needsSeasonPrefix" class="text-gray-400 dark:text-gray-500">(第{{ activeSeason }}季)</span>
+        </span>
+        <div class="flex items-center gap-1.5 flex-1 min-w-0">
+          <div class="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+            <div
+              class="h-full bg-indigo-500 rounded-full transition-all duration-500"
+              :style="{ width: filteredProgressPercent + '%' }"
+            ></div>
           </div>
+          <span class="text-[10px] md:text-xs text-gray-400 dark:text-gray-500">{{ filteredProgressPercent }}%</span>
         </div>
       </div>
     </div>
 
     <!-- 演职员 -->
     <div v-if="show && show.category !== 'book'" class="mb-6">
-      <button
-        @click="creditsExpanded = !creditsExpanded"
-        class="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition"
-      >
-        <span>演职员</span>
-        <span v-if="loadingCredits" class="inline-block animate-spin rounded-full h-3 w-3 border border-gray-400 border-t-transparent"></span>
-        <span v-else class="text-xs transition-transform duration-200" :class="{ 'rotate-90': creditsExpanded }">▶</span>
-      </button>
+      <div class="flex items-center">
+        <button
+          @click="creditsExpanded = !creditsExpanded"
+          class="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition"
+        >
+          <span>演职员</span>
+          <span v-if="loadingCredits" class="inline-block animate-spin rounded-full h-3 w-3 border border-gray-400 border-t-transparent"></span>
+          <span v-else class="text-xs transition-transform duration-200" :class="{ 'rotate-90': creditsExpanded }">▶</span>
+        </button>
+        <button @click="goToStats" class="ml-auto text-xs text-indigo-500 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 transition">查看统计 →</button>
+      </div>
       <div v-if="creditsExpanded" class="mt-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 md:p-4 space-y-3">
         <div v-if="credits.crew.length > 0">
           <h4 class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">主创</h4>
