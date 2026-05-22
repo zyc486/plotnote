@@ -228,7 +228,7 @@ function handleJump() {
           <CoverImage :src="show.coverImage" :name="show.name" size="xl" />
         </div>
         <div class="flex-1 min-w-0 flex flex-col justify-between">
-          <h1 class="text-base md:text-lg font-bold leading-tight text-left">{{ show.name }}</h1>
+          <h1 class="text-2xl md:text-3xl font-bold leading-tight text-center">{{ show.name }}</h1>
           <div class="flex flex-col items-center">
             <span v-if="filteredAvgRating > 0" class="text-3xl md:text-4xl font-bold text-amber-400">{{ filteredAvgRating }}</span>
           </div>
