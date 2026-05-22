@@ -225,12 +225,14 @@ function handleJump() {
     <div v-if="show" class="mb-4">
       <div class="flex flex-row gap-4 items-stretch">
         <div class="relative flex-shrink-0 cursor-pointer hover:opacity-80 transition self-center" @click="showCoverLightbox = true">
-          <CoverImage :src="show.coverImage" :name="show.name" size="lg" />
+          <CoverImage :src="show.coverImage" :name="show.name" size="xl" />
         </div>
-        <div class="flex-1 min-w-0 flex flex-col items-center justify-center text-center">
-          <h1 class="text-lg md:text-xl font-bold leading-tight">{{ show.name }}</h1>
-          <span v-if="filteredAvgRating > 0" class="text-3xl md:text-4xl font-bold text-amber-400 mt-1">{{ filteredAvgRating }}</span>
-          <div class="flex items-center gap-1.5 mt-1.5 flex-wrap justify-center">
+        <div class="flex-1 min-w-0 flex flex-col justify-between">
+          <h1 class="text-base md:text-lg font-bold leading-tight text-left">{{ show.name }}</h1>
+          <div class="flex flex-col items-center">
+            <span v-if="filteredAvgRating > 0" class="text-3xl md:text-4xl font-bold text-amber-400">{{ filteredAvgRating }}</span>
+          </div>
+          <div class="flex items-center gap-1.5 flex-wrap justify-center">
             <span v-if="show.status" class="px-1.5 py-0.5 text-[10px] md:text-xs rounded-full" :class="statusColor(show.status)">{{ statusLabel(show.status) }}</span>
             <span v-if="show.region" class="text-[10px] md:text-xs text-gray-500 dark:text-gray-400">{{ show.region }}</span>
             <template v-if="parseGenres(show).length > 0">

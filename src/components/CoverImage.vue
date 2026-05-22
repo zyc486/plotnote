@@ -17,6 +17,7 @@ const sizeClasses = computed(() => ({
   sm: 'w-10 h-14 rounded text-[10px]',
   md: 'w-16 h-[88px] rounded-lg text-xs',
   lg: 'w-24 h-[136px] rounded-xl text-sm',
+  xl: 'w-32 h-[180px] md:w-36 md:h-[200px] rounded-xl text-sm',
 }[props.size] || 'w-16 h-[88px] rounded-lg text-xs'))
 
 const placeholderClass = computed(() => ({
