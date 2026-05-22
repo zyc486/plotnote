@@ -712,7 +712,6 @@ const manualItemLabel = computed(() => {
         <button @click="goToSearch" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xs md:text-sm px-1.5 md:px-3 py-2 transition whitespace-nowrap shrink-0">搜索</button>
         <button @click="goToStats" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xs md:text-sm px-1.5 md:px-3 py-2 transition whitespace-nowrap shrink-0">统计</button>
         <router-link to="/timeline" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xs md:text-sm px-1.5 md:px-3 py-2 transition whitespace-nowrap shrink-0">时间线</router-link>
-        <router-link to="/statistics" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xs md:text-sm px-1.5 md:px-3 py-2 transition whitespace-nowrap shrink-0">标签</router-link>
         <router-link to="/settings" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xs md:text-sm px-1.5 md:px-3 py-2 transition whitespace-nowrap shrink-0">设置</router-link>
         <button @click="openForm" class="bg-gray-800 hover:bg-gray-700 text-white dark:bg-indigo-600 dark:hover:bg-indigo-500 px-2 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition whitespace-nowrap shrink-0">+ 添加</button>
       </div>
