@@ -846,7 +846,7 @@ const manualItemLabel = computed(() => {
 
           <div v-else-if="searchResults.length > 0 && !selectedResult" class="space-y-2 max-h-60 overflow-y-auto">
             <div v-for="item in searchResults" :key="item.id" @click="selectResult(item)" class="flex items-center gap-3 p-3 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-650 cursor-pointer transition">
-              <CoverImage :src="item.image" :name="item.name" size="sm" />
+              <CoverImage :src="item.image" :name="item.name" size="sm" :category="selectedCategory" />
               <div class="flex-1 min-w-0">
                 <p class="font-medium truncate">{{ item.name }}</p>
                 <p v-if="item.cnName || item.nativeName || item.englishName" class="text-xs text-gray-400 dark:text-gray-500 truncate">{{ item.cnName || item.nativeName || item.englishName }}</p>
@@ -970,7 +970,7 @@ const manualItemLabel = computed(() => {
         <div class="mb-4">
           <label class="block text-sm text-gray-500 dark:text-gray-400 mb-1">封面图片</label>
           <div class="flex items-start gap-3">
-            <CoverImage :src="editCoverImage" :name="editName" size="md" />
+            <CoverImage :src="editCoverImage" :name="editName" size="md" :category="editCategory" />
             <div class="flex-1">
               <div class="flex gap-2">
                 <input v-model="editCoverImage" type="text" placeholder="输入封面图片URL，留空显示作品名" class="flex-1 bg-gray-100 dark:bg-gray-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />

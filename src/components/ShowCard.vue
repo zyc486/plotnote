@@ -13,6 +13,7 @@ const props = defineProps({
 const emit = defineEmits(['goTo', 'edit', 'delete', 'toggleStatus', 'changeStatus', 'toggleSelect'])
 
 const progress = computed(() => progressLabel(props.show))
+const isGame = computed(() => props.show?.category === 'game')
 </script>
 
 <template>
@@ -27,7 +28,8 @@ const progress = computed(() => progressLabel(props.show))
         v-if="show.coverImage"
         :src="show.coverImage"
         :alt="show.name"
-        class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+        class="w-full h-full transition-transform duration-300 group-hover:scale-105"
+        :class="isGame ? 'object-contain' : 'object-cover'"
         loading="lazy"
         @error="$event.target.style.display = 'none'"
       />

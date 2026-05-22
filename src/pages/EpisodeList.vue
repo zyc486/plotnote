@@ -225,7 +225,7 @@ function handleJump() {
     <div v-if="show" class="mb-4">
       <div class="flex flex-row gap-4 items-stretch">
         <div class="relative flex-shrink-0 cursor-pointer hover:opacity-80 transition self-center" @click="showCoverLightbox = true">
-          <CoverImage :src="show.coverImage" :name="show.name" size="xl" />
+          <CoverImage :src="show.coverImage" :name="show.name" size="xl" :category="show.category" />
         </div>
         <div class="flex-1 min-w-0 flex flex-col justify-between">
           <h1 class="text-2xl md:text-3xl font-bold leading-tight text-center">{{ show.name }}</h1>

@@ -5,6 +5,7 @@ const props = defineProps({
   src: { type: String, default: '' },
   name: { type: String, default: '' },
   size: { type: String, default: 'md' },
+  category: { type: String, default: '' },
   clickable: { type: Boolean, default: false },
 })
 
@@ -25,6 +26,8 @@ const placeholderClass = computed(() => ({
   md: 'bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800',
   lg: 'bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800',
 }[props.size] || 'bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800'))
+
+const isGame = computed(() => props.category === 'game')
 
 watch(() => props.src, () => {
   errored.value = false
@@ -58,8 +61,8 @@ function onClick() {
     <img
       v-if="src && !errored"
       :src="src"
-      class="w-full h-full object-cover transition-opacity duration-300"
-      :class="loading ? 'opacity-0' : 'opacity-100'"
+      class="w-full h-full transition-opacity duration-300"
+      :class="[isGame ? 'object-contain' : 'object-cover', loading ? 'opacity-0' : 'opacity-100']"
       @load="onLoad"
       @error="onError"
       loading="lazy"
