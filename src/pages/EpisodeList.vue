@@ -232,7 +232,7 @@ function handleJump() {
             <span v-if="show.status" class="px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs rounded-full" :class="statusColor(show.status)">{{ statusLabel(show.status) }}</span>
             <span v-if="show.region" class="text-[10px] md:text-xs text-gray-500 dark:text-gray-400">{{ show.region }}</span>
             <template v-if="parseGenres(show).length > 0">
-              <span v-for="g in parseGenres(show).slice(0, 3)" :key="g" class="px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs rounded-full bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400 hidden sm:inline">{{ g }}</span>
+              <span v-for="g in parseGenres(show).slice(0, 3)" :key="g" class="px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs rounded-full bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400">{{ g }}</span>
             </template>
             <button @click="goToStats" class="text-[10px] md:text-xs text-indigo-500 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 transition ml-auto">查看统计 →</button>
           </div>
@@ -241,7 +241,7 @@ function handleJump() {
               进度: {{ filteredProgressText }}
               <span v-if="activeSeason !== null && needsSeasonPrefix" class="text-gray-400 dark:text-gray-500">(第{{ activeSeason }}季)</span>
             </span>
-            <div class="flex items-center gap-1.5 flex-1 max-w-xs">
+            <div class="flex items-center gap-1.5 flex-1 min-w-0 max-w-xs">
               <div class="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                 <div
                   class="h-full bg-indigo-500 rounded-full transition-all duration-500"
@@ -250,7 +250,7 @@ function handleJump() {
               </div>
               <span class="text-[10px] md:text-xs text-gray-400 dark:text-gray-500">{{ filteredProgressPercent }}%</span>
             </div>
-            <span v-if="filteredAvgRating > 0" class="text-amber-400 font-bold text-sm md:text-base">
+            <span v-if="filteredAvgRating > 0" class="ml-auto sm:ml-0 text-amber-400 font-bold text-sm md:text-base">
               {{ filteredAvgRating }} 均分
             </span>
           </div>
@@ -365,7 +365,7 @@ function handleJump() {
 
     <div v-for="season in filteredSeasonKeys" :key="season" class="mb-8">
       <h2 v-if="needsSeasonPrefix" class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-3">第 {{ season }} {{ term.seasonLabel }}</h2>
-      <div class="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 gap-1.5">
+      <div class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-1.5">
         <div
           v-for="ep in episodeGroups[season]"
           :key="ep.id"
@@ -380,7 +380,7 @@ function handleJump() {
             : 'bg-gray-100 border-gray-200 hover:bg-gray-200 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700'"
         >
           <span class="text-sm font-semibold text-gray-600 dark:text-gray-300">{{ String(ep.episode).padStart(2, '0') }}</span>
-          <span v-if="getRecord(ep.id)?.rating > 0" class="text-xs font-bold text-amber-400 mt-0.5">{{ Number(getRecord(ep.id).rating).toFixed(1) }}</span>
+          <span v-if="getRecord(ep.id)?.rating > 0" class="text-sm font-bold text-amber-400 mt-0.5">{{ Number(getRecord(ep.id).rating).toFixed(1) }}</span>
           <span v-else class="text-[10px] text-gray-300 dark:text-gray-600 mt-0.5">—</span>
         </div>
       </div>
