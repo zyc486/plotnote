@@ -59,6 +59,7 @@ const epTerm = computed(() => {
 })
 
 const showSidebarMobile = ref(false)
+const showRatingMobile = ref(false)
 const rightSeason = ref(0)
 const episodeScores = ref({})
 
@@ -413,6 +414,7 @@ async function jumpToEpisode(episodeData) {
   await forceSave()
   if (episode.value) clearDraft(episode.value.id)
   showSidebarMobile.value = false
+  showRatingMobile.value = false
   router.push(`/episode/${episodeData.id}`)
 }
 
@@ -546,6 +548,10 @@ onBeforeRouteLeave(async (to, from, next) => {
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
           选集 ({{ episodesStore.episodes.length }})
         </button>
+        <button @click="showRatingMobile = true" class="md:hidden flex items-center gap-1 text-xs text-amber-500 hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300 transition-colors">
+          <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          评分
+        </button>
         <span class="flex items-center gap-1.5 text-xs text-zinc-400 dark:text-zinc-500">
           <span class="w-1.5 h-1.5 rounded-full" :class="dirty ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'"></span>
           {{ dirty ? '未保存' : '已保存' }}
@@ -655,6 +661,38 @@ onBeforeRouteLeave(async (to, from, next) => {
           v-model:season="rightSeason"
           @select="selectEpisode"
         />
+      </div>
+    </Transition>
+
+    <!-- 移动端底部评分面板 -->
+    <Transition name="fade">
+      <div v-if="showRatingMobile" @click="showRatingMobile = false" class="fixed inset-0 bg-black/50 z-30 md:hidden"></div>
+    </Transition>
+    <Transition name="slide-up">
+      <div v-if="showRatingMobile" class="fixed inset-x-0 bottom-0 z-40 max-h-[80vh] bg-white dark:bg-zinc-900 rounded-t-2xl shadow-2xl border-t border-zinc-200 dark:border-zinc-800 overflow-y-auto md:hidden">
+        <div class="flex justify-center pt-2 pb-1">
+          <div class="w-10 h-1 rounded-full bg-zinc-300 dark:bg-zinc-600"></div>
+        </div>
+        <div class="p-4 space-y-4">
+          <RatingPanel v-model:rating="rating" :animation="ratingAnimation" />
+          <ExternalRatings :ratings="externalRatings" />
+          <div class="bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-200/60 dark:border-zinc-800">
+            <p class="text-[11px] text-zinc-400 dark:text-zinc-500 uppercase tracking-wider font-medium mb-2">观看日期</p>
+            <input
+              v-model="watchedDate"
+              type="date"
+              class="w-full bg-zinc-50 dark:bg-zinc-800 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-300 dark:focus:ring-amber-700 border border-zinc-200/60 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300"
+            />
+          </div>
+          <RewatchList
+            :records="episodeRecords"
+            :current-record-id="currentRecordId"
+            :active-record-id="episode?.activeRecordId"
+            @create="createNewRecord"
+            @switch="switchActiveRecord"
+            @delete="deleteRecord"
+          />
+        </div>
       </div>
     </Transition>
 
