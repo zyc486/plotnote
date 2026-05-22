@@ -684,6 +684,7 @@ function goBack() {
         </div>
         </div>
       </template>
+    </div>
 
     <!-- 标签 -->
     <div v-else-if="activeTab === 'tags'" class="space-y-6">
