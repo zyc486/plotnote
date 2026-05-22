@@ -142,7 +142,6 @@ async function ensureRecordExists() {
 
 const debouncedSaveRating = debounce(async (val) => {
   if (skipWatchers) return
-  await ensureRecordExists()
   if (currentRecordId.value) {
     await recordsStore.updateRecord(currentRecordId.value, { rating: val })
     dirty.value = false
@@ -158,7 +157,6 @@ const debouncedSaveRating = debounce(async (val) => {
 
 const debouncedSaveImages = debounce(async (val) => {
   if (skipWatchers) return
-  await ensureRecordExists()
   if (currentRecordId.value) {
     await recordsStore.updateRecord(currentRecordId.value, { images: val })
     dirty.value = false
@@ -168,7 +166,6 @@ const debouncedSaveImages = debounce(async (val) => {
 
 const debouncedSaveTags = debounce(async (val) => {
   if (skipWatchers) return
-  await ensureRecordExists()
   if (currentRecordId.value) {
     await recordsStore.updateRecord(currentRecordId.value, { tags: val })
     dirty.value = false
@@ -341,16 +338,20 @@ async function initPage({ skipFetchEpisodes = false } = {}) {
 async function createNewRecord() {
   if (!episode.value) return
   await forceSave()
-  clearDraft(episode.value.id)
 
-  const id = await recordsStore.createRecord(episode.value.id, 0, '', [], [])
+  // 从草稿或当前状态读取数据
+  const draft = loadDraft(episode.value.id)
+  const newRating = draft?.rating ?? rating.value
+  const newReview = draft?.review ?? getReviewHTML()
+  const newImages = draft?.images ?? images.value
+  const newTags = draft?.tags ?? tags.value
+  const newDate = draft?.watchedDate ?? watchedDate.value
+
+  const id = await recordsStore.createRecord(episode.value.id, newRating, newReview, newImages, newTags, newDate)
   currentRecordId.value = id
-  rating.value = 0
-  editor.value?.commands.setContent('')
-  images.value = []
-  tags.value = []
   dirty.value = false
 
+  clearDraft(episode.value.id)
   await loadEpisodeRecords()
   props.toast?.('新记录已创建', 'success')
 }

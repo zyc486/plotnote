@@ -43,6 +43,6 @@ const emit = defineEmits(['create', 'switch', 'delete'])
         </div>
       </div>
     </div>
-    <p v-else class="text-xs text-zinc-400 dark:text-zinc-500 text-center py-4">评分后自动创建</p>
+    <p v-else class="text-xs text-zinc-400 dark:text-zinc-500 text-center py-4">点击 + 新建 创建记录</p>
   </div>
 </template>
