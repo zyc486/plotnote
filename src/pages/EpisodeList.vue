@@ -223,10 +223,15 @@ function handleJump() {
     </button>
 
     <div v-if="show" class="mb-6">
-      <div class="flex flex-col sm:flex-row gap-3 sm:gap-4">
-        <CoverImage :src="show.coverImage" :name="show.name" size="lg" clickable @click="showCoverLightbox = true" />
+      <div class="flex flex-row sm:flex-row gap-3 sm:gap-4 items-start sm:items-center">
+        <div class="relative flex-shrink-0 cursor-pointer hover:opacity-80 transition" @click="showCoverLightbox = true">
+          <CoverImage :src="show.coverImage" :name="show.name" size="lg" />
+          <div v-if="filteredAvgRating > 0" class="absolute top-1.5 left-1.5 bg-black/75 backdrop-blur-sm text-amber-400 text-xs font-bold px-1.5 py-0.5 rounded">
+            {{ filteredAvgRating }}
+          </div>
+        </div>
         <div class="flex-1 min-w-0">
-          <h1 class="text-xl md:text-2xl font-bold">{{ show.name }}</h1>
+          <h1 class="text-lg sm:text-xl md:text-2xl font-bold leading-tight">{{ show.name }}</h1>
           <div class="flex items-center gap-1.5 md:gap-2 mt-1 flex-wrap">
             <span v-if="show.category" class="px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs rounded-full bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400">{{ categoryLabel(show.category) }}</span>
             <span v-if="show.status" class="px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs rounded-full" :class="statusColor(show.status)">{{ statusLabel(show.status) }}</span>
