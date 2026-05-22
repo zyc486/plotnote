@@ -9,7 +9,7 @@ const routes = [
   { path: '/statistics', name: 'Statistics', component: () => import('../pages/Statistics.vue'), meta: { requiresAuth: true } },
   { path: '/search', name: 'Search', component: () => import('../pages/Search.vue'), meta: { requiresAuth: true } },
   { path: '/timeline', name: 'Timeline', component: () => import('../pages/Timeline.vue'), meta: { requiresAuth: true } },
-  { path: '/tags', name: 'TagCloud', component: () => import('../pages/TagCloud.vue'), meta: { requiresAuth: true } },
+  { path: '/tags', redirect: '/statistics' },
   { path: '/settings', name: 'Settings', component: () => import('../pages/Settings.vue'), meta: { requiresAuth: true } },
   { path: '/:pathMatch(.*)*', redirect: '/' },
 ]
