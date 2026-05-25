@@ -532,7 +532,7 @@ onBeforeRouteLeave(async (to, from, next) => {
 <template>
   <div class="h-[100dvh] flex flex-col bg-zinc-50 dark:bg-zinc-950">
     <!-- 顶栏 -->
-    <header class="flex items-center justify-between px-5 py-3 flex-shrink-0">
+    <header class="flex items-center justify-between px-5 pt-[env(safe-area-inset-top)] pb-3 flex-shrink-0">
       <button @click="goBack" class="flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
         <span class="hidden sm:inline">返回</span>
